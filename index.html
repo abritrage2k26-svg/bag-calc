@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>BAG · Calcule ta mise</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0f0e;
+    --surface:#12181a;
+    --surface-2:#161e20;
+    --line:#233029;
+    --gold:#e8a23d;
+    --gold-dim:#8a6a30;
+    --blue:#4c8dff;
+    --red:#ff5c5c;
+    --text:#f2f0ea;
+    --muted:#8a9490;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:32px 16px 64px;
+    line-height:1.45;
+  }
+  .wrap{width:100%;max-width:420px;}
+
+  .brand{
+    display:flex;align-items:baseline;gap:8px;
+    margin-bottom:18px;
+  }
+  .brand .mark{
+    font-family:'Space Grotesk',sans-serif;font-weight:700;
+    font-size:15px;letter-spacing:0.02em;color:var(--gold);
+  }
+  .brand .sub{font-size:12px;color:var(--muted);}
+
+  .ticket{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:18px;
+    overflow:hidden;
+  }
+
+  .ticket-head{padding:20px 22px 18px;}
+  .match-sport{font-size:11px;color:var(--gold);font-weight:600;margin-bottom:4px;}
+  .match-name{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:17px;line-height:1.3;}
+  .match-league{font-size:12px;color:var(--muted);margin-top:2px;}
+  .market-flag{
+    margin-top:10px;font-size:11.5px;color:#f2c96a;
+    background:rgba(232,162,61,0.08);
+    border:1px solid rgba(232,162,61,0.25);
+    border-radius:9px;padding:7px 10px;line-height:1.4;
+  }
+
+  .rows{padding:2px 22px 18px;}
+  .row{
+    display:flex;justify-content:space-between;align-items:baseline;
+    padding:10px 0;border-top:1px solid var(--line);
+  }
+  .row:first-child{border-top:none;}
+  .side{display:flex;align-items:baseline;gap:8px;}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;position:relative;top:-1px;}
+  .dot.soft{background:var(--blue);}
+  .dot.pin{background:var(--red);}
+  .dot.s3{background:var(--gold);}
+  .side-name{font-weight:600;font-size:14.5px;}
+  .side-odds{color:var(--muted);font-size:13px;}
+  .side-pct{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;}
+  .side-pct.soft{color:var(--blue);}
+  .side-pct.pin{color:var(--red);}
+  .side-pct.s3{color:var(--gold);}
+
+  .perf{
+    height:0;border-top:1px dashed var(--line);
+    margin:0 22px;position:relative;
+  }
+  .perf::before,.perf::after{
+    content:'';position:absolute;top:-9px;width:18px;height:18px;
+    background:var(--bg);border-radius:50%;
+  }
+  .perf::before{left:-31px;}
+  .perf::after{right:-31px;}
+
+  .input-zone{padding:20px 22px 10px;}
+  .input-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+  .input-row{
+    display:flex;align-items:center;gap:10px;
+    background:var(--surface-2);border:1px solid var(--line);
+    border-radius:12px;padding:12px 14px;
+    transition:border-color .15s ease;
+  }
+  .input-row:focus-within{border-color:var(--gold-dim);}
+  .input-row .cur{color:var(--muted);font-size:14px;}
+  #capital{
+    flex:1;background:none;border:none;outline:none;color:var(--text);
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;
+    min-width:0;
+  }
+  #capital::placeholder{color:#4a5451;font-weight:500;}
+
+  .results{padding:16px 22px 22px;}
+  .result-row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:12px 0;
+  }
+  .result-row + .result-row{border-top:1px solid var(--line);}
+  .result-name{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;}
+  .result-amount{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;}
+  .result-amount.soft{color:var(--blue);}
+  .result-amount.pin{color:var(--red);}
+  .result-amount.s3{color:var(--gold);}
+  .result-market{font-size:11.5px;color:var(--muted);margin-top:1px;}
+
+  .edge-line{
+    display:flex;justify-content:space-between;font-size:12px;color:var(--muted);
+    padding-top:10px;margin-top:4px;border-top:1px solid var(--line);
+  }
+  .edge-line b{color:var(--text);}
+
+  .empty-hint{font-size:12.5px;color:var(--muted);padding:6px 0 2px;}
+
+  .foot{
+    text-align:center;font-size:11px;color:#4a5451;margin-top:20px;line-height:1.6;
+  }
+  .foot a{color:var(--gold-dim);text-decoration:none;}
+
+  @media (max-width:380px){
+    .match-name{font-size:15.5px;}
+    .side-name{font-size:13.5px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <span class="mark">BAG</span>
+    <span class="sub">Calcule ta mise, en direct</span>
+  </div>
+
+  <div class="ticket">
+    <div class="ticket-head">
+      <div class="match-sport" id="outSport">Sport</div>
+      <div class="match-name" id="outMatch">Équipe A - Équipe B</div>
+      <div class="match-league" id="outLeague"></div>
+      <div class="market-flag" id="outMarket" style="display:none;"></div>
+    </div>
+
+    <div class="rows" id="rows"></div>
+
+    <div class="perf"></div>
+
+    <div class="input-zone">
+      <div class="input-label">Ton capital pour ce pari</div>
+      <div class="input-row">
+        <span class="cur">CFA</span>
+        <input type="number" id="capital" inputmode="numeric" placeholder="10000" autofocus>
+      </div>
+      <div class="empty-hint" id="hint">Tape un montant pour voir la répartition exacte.</div>
+    </div>
+
+    <div class="results" id="results" style="display:none;"></div>
+  </div>
+
+  <div class="foot">
+    Répartition indicative — vérifie toujours les cotes en direct<br>
+    avant de placer ton pari. <a href="#" id="privLink">Rien n'est envoyé à personne</a>, tout reste sur ton téléphone.
+  </div>
+
+</div>
+
+<script>
+// ── Lecture des paramètres du lien (envoyés par le signal Telegram) ──
+// Format générique : side1..side3 (name/cote/desc), pour couvrir 2 ET 3 issues avec le
+// même code plutôt que deux chemins séparés. Un signal 2 issues n'envoie que side1+side2.
+const p = new URLSearchParams(window.location.search);
+const meta = {
+  sport:  p.get('sport')  || '',
+  match:  p.get('match')  || '',
+  league: p.get('league') || '',
+  market: p.get('market') || '',
+  edge:   p.get('edge')   || '',
+};
+const sides = [];
+for (let i = 1; i <= 3; i++) {
+  const name = p.get('n' + i);
+  const cote = parseFloat(p.get('c' + i));
+  if (!name || !cote) continue;
+  sides.push({ name, cote, desc: p.get('d' + i) || '', dotClass: i === 1 ? 'soft' : i === 2 ? 'pin' : 's3' });
+}
+
+// Pas d'arrondi identique au terminal BAG (voir PAS_ARRONDI_CFA côté app) — une mise
+// calculée ici doit toujours être plaçable telle quelle chez le bookmaker. Chaque côté
+// SAUF le dernier est arrondi normalement ; le dernier absorbe l'écart pour que la somme
+// retombe toujours exactement sur le capital tapé (jamais 10 050 au lieu de 10 000).
+const PAS_ARRONDI_CFA = 50;
+
+// ── Remplissage du récap ──
+function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function setShow(id, show) { const el = document.getElementById(id); if (el) el.style.display = show ? '' : 'none'; }
+
+setText('outSport', meta.sport || '');
+setShow('outSport', !!meta.sport);
+setText('outMatch', meta.match || 'Match non précisé');
+setText('outLeague', meta.league || '');
+setShow('outLeague', !!meta.league);
+if (meta.market) {
+  setShow('outMarket', true);
+  setText('outMarket', '🎯 Marché spécial : ' + meta.market.toUpperCase() + ' — pas le résultat classique du match.');
+}
+
+let pcts = [];
+if (sides.length >= 2) {
+  const arb = sides.reduce((s, x) => s + (1 / x.cote), 0);
+  pcts = sides.map(x => ((1 / x.cote) / arb) * 100);
+}
+
+const rowsEl = document.getElementById('rows');
+sides.forEach((s, i) => {
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `
+    <div class="side">
+      <span class="dot ${s.dotClass}"></span>
+      <span class="side-name">${s.name}</span>
+      <span class="side-odds">@ ${s.cote}</span>
+    </div>
+    <span class="side-pct ${s.dotClass}">${pcts[i] ? pcts[i].toFixed(1) : '--'}%</span>`;
+  rowsEl.appendChild(row);
+});
+
+// ── Calcul en direct pendant la saisie ──
+const input = document.getElementById('capital');
+const results = document.getElementById('results');
+const hint = document.getElementById('hint');
+
+input.addEventListener('input', () => {
+  const capital = parseFloat(input.value);
+  if (!capital || capital <= 0 || sides.length < 2) {
+    results.style.display = 'none';
+    hint.style.display = '';
+    return;
+  }
+  hint.style.display = 'none';
+  results.style.display = '';
+  results.innerHTML = '';
+
+  const montants = pcts.slice(0, -1).map(pct => Math.round(capital * pct / 100 / PAS_ARRONDI_CFA) * PAS_ARRONDI_CFA);
+  montants.push(Math.round(capital - montants.reduce((a, b) => a + b, 0)));
+
+  sides.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'result-row';
+    row.innerHTML = `
+      <div>
+        <div class="result-name"><span class="dot ${s.dotClass}"></span>${s.name}</div>
+        <div class="result-market">${s.desc ? 'Parier sur : ' + s.desc : ''}</div>
+      </div>
+      <span class="result-amount ${s.dotClass}">${montants[i].toLocaleString('fr-FR')} CFA</span>`;
+    results.appendChild(row);
+  });
+
+  const edgeRow = document.createElement('div');
+  edgeRow.className = 'edge-line';
+  edgeRow.innerHTML = `<span>Edge annoncé</span><b>${meta.edge ? meta.edge + '%' : '—'}</b>`;
+  results.appendChild(edgeRow);
+});
+</script>
+</body>
+</html>
