@@ -190,12 +190,17 @@ const meta = {
   market: p.get('market') || '',
   edge:   p.get('edge')   || '',
 };
+// Taux EUR/CFA — Pinnacle fonctionne en euros, contrairement aux softs (1xBet/1Win) qui
+// restent en CFA. Repli à 656 (taux par défaut du terminal BAG) si le lien ne le transmet
+// pas — un ancien lien généré avant cet ajout continue de fonctionner, juste sans cette
+// conversion précise.
+const tx = parseFloat(p.get('tx')) || 656;
 const sides = [];
 for (let i = 1; i <= 3; i++) {
   const name = p.get('n' + i);
   const cote = parseFloat(p.get('c' + i));
   if (!name || !cote) continue;
-  sides.push({ name, cote, desc: p.get('d' + i) || '', dotClass: i === 1 ? 'soft' : i === 2 ? 'pin' : 's3' });
+  sides.push({ name, cote, desc: p.get('d' + i) || '', dotClass: i === 1 ? 'soft' : i === 2 ? 'pin' : 's3', estPinnacle: name === 'Pinnacle' });
 }
 
 // Pas d'arrondi identique au terminal BAG (voir PAS_ARRONDI_CFA côté app) — une mise
@@ -231,7 +236,7 @@ sides.forEach((s, i) => {
   row.innerHTML = `
     <div class="side">
       <span class="dot ${s.dotClass}"></span>
-      <span class="side-name">${s.name}</span>
+      <span class="side-name">${s.name}${s.estPinnacle ? ' <span style="color:#8a9490;font-weight:500;font-size:11px;">(dépôt en €)</span>' : ''}</span>
       <span class="side-odds">@ ${s.cote}</span>
     </div>
     <span class="side-pct ${s.dotClass}">${pcts[i] ? pcts[i].toFixed(1) : '--'}%</span>`;
@@ -260,12 +265,18 @@ input.addEventListener('input', () => {
   sides.forEach((s, i) => {
     const row = document.createElement('div');
     row.className = 'result-row';
+    // Pinnacle se dépose en euros, pas en CFA — on convertit ce montant précis avec le
+    // taux transmis par le signal, arrondi au centime le plus proche (précision réelle
+    // d'un dépôt Pinnacle), plutôt que de l'afficher en CFA comme les softs.
+    const montantAffiche = s.estPinnacle
+      ? (montants[i] / tx).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+      : montants[i].toLocaleString('fr-FR') + ' CFA';
     row.innerHTML = `
       <div>
         <div class="result-name"><span class="dot ${s.dotClass}"></span>${s.name}</div>
         <div class="result-market">${s.desc ? 'Parier sur : ' + s.desc : ''}</div>
       </div>
-      <span class="result-amount ${s.dotClass}">${montants[i].toLocaleString('fr-FR')} CFA</span>`;
+      <span class="result-amount ${s.dotClass}">${montantAffiche}</span>`;
     results.appendChild(row);
   });
 
