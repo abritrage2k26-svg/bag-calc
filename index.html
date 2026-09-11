@@ -136,12 +136,35 @@
   }
   .edge-line b{color:var(--text);}
 
+  .profit-banner{
+    background:rgba(232,162,61,0.08);border:1px solid rgba(232,162,61,0.3);
+    border-radius:12px;padding:14px 16px;margin-bottom:14px;text-align:center;
+  }
+  .profit-banner .label{font-size:10.5px;color:var(--gold);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;}
+  .profit-banner .amount{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:24px;color:var(--gold);margin-top:3px;}
+  .profit-banner .note{font-size:11px;color:var(--muted);margin-top:3px;}
+
   .empty-hint{font-size:12.5px;color:var(--muted);padding:6px 0 2px;}
+  .last-hint{font-size:11.5px;color:var(--gold-dim);padding:0 0 8px;}
+
+  .explain-toggle{
+    display:block;text-align:center;font-size:12px;color:var(--muted);
+    text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;
+    cursor:pointer;margin-top:14px;background:none;border:none;padding:4px;width:100%;
+    font-family:inherit;-webkit-tap-highlight-color:transparent;
+  }
+  .explain-box{
+    display:none;font-size:12.5px;color:var(--muted);line-height:1.6;
+    background:var(--surface-2);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;margin-top:10px;
+  }
+  .explain-box b{color:var(--text);}
 
   .foot{
     text-align:center;font-size:11px;color:#4a5451;margin-top:20px;line-height:1.6;
   }
   .foot a{color:var(--gold-dim);text-decoration:none;}
+  .foot .signature{margin-top:10px;color:#3a423f;font-size:10.5px;}
 
   @media (max-width:380px){
     .match-name{font-size:15.5px;}
@@ -175,15 +198,22 @@
         <span class="cur">CFA</span>
         <input type="number" id="capital" inputmode="numeric" placeholder="10000" autofocus>
       </div>
+      <div class="last-hint" id="lastHint" style="display:none;"></div>
       <div class="empty-hint" id="hint">Tape un montant pour voir la répartition exacte.</div>
     </div>
 
     <div class="results" id="results" style="display:none;"></div>
+
+    <button type="button" class="explain-toggle" id="explainToggle">Pourquoi miser sur les deux côtés ? →</button>
+    <div class="explain-box" id="explainBox">
+      C'est le principe de l'arbitrage : au lieu de parier sur un seul résultat, on couvre <b>toutes les issues possibles</b> chez des bookmakers différents, avec des cotes qui compensent leurs écarts. Résultat : <b>peu importe qui gagne</b>, la somme totale récupérée dépasse toujours la mise totale engagée — le profit ci-dessus est garanti avant même le coup d'envoi, pas un pronostic.
+    </div>
   </div>
 
   <div class="foot">
     Répartition indicative — vérifie toujours les cotes en direct<br>
     avant de placer ton pari. <a href="#" id="privLink">Rien n'est envoyé à personne</a>, tout reste sur ton téléphone.
+    <div class="signature">Calcul vérifié à la même précision que celle utilisée en interne — BAG</div>
   </div>
 
 </div>
@@ -297,14 +327,31 @@ function copierMontant(valeurBrute, boutonEl) {
 // restreint) bloquent localStorage — l'app doit continuer à fonctionner sans, juste
 // sans cette commodité.
 const CLE_CAPITAL = 'bagcalc_dernier_capital';
+const lastHint = document.getElementById('lastHint');
 try {
   const dernier = localStorage.getItem(CLE_CAPITAL);
-  if (dernier) input.value = dernier;
+  if (dernier) {
+    input.value = dernier;
+    // Affiché explicitement (pas juste pré-rempli en silence) — la calculatrice se
+    // souvient de l'abonné entre deux signaux, autant que ça se voie.
+    lastHint.textContent = `Dernier montant utilisé : ${parseFloat(dernier).toLocaleString('fr-FR')} CFA`;
+    lastHint.style.display = '';
+  }
 } catch (e) {}
 
 function sauverCapital(valeur) {
   try { localStorage.setItem(CLE_CAPITAL, valeur); } catch (e) {}
 }
+
+// ── Volet "Pourquoi miser sur les deux côtés ?" — replié par défaut, pour les
+// abonnés qui découvrent l'arbitrage sans surcharger l'écran pour les autres.
+const explainToggle = document.getElementById('explainToggle');
+const explainBox = document.getElementById('explainBox');
+explainToggle.addEventListener('click', () => {
+  const ouvert = explainBox.style.display === 'block';
+  explainBox.style.display = ouvert ? 'none' : 'block';
+  explainToggle.textContent = ouvert ? 'Pourquoi miser sur les deux côtés ? →' : 'Masquer l\'explication ↑';
+});
 
 input.addEventListener('input', () => {
   const capital = parseFloat(input.value);
@@ -314,12 +361,29 @@ input.addEventListener('input', () => {
     return;
   }
   sauverCapital(input.value);
+  lastHint.style.display = 'none';
   hint.style.display = 'none';
   results.style.display = '';
   results.innerHTML = '';
 
   const montants = pcts.slice(0, -1).map(pct => Math.round(capital * pct / 100 / PAS_ARRONDI_CFA) * PAS_ARRONDI_CFA);
   montants.push(Math.round(capital - montants.reduce((a, b) => a + b, 0)));
+
+  // ── Profit garanti — le MINIMUM du profit sur chacune des issues possibles (pas une
+  // moyenne). Avec l'arrondi des mises, le profit réel diffère légèrement selon qui
+  // gagne ; le montant "garanti" est celui qu'on touche même dans le pire des cas,
+  // exactement la même logique que côté terminal (validerProfitMin côté app BAG-PAS).
+  const profitsParIssue = sides.map((s, i) => montants[i] * s.cote - capital);
+  const profitGaranti = Math.floor(Math.min(...profitsParIssue));
+  const profitPct = (profitGaranti / capital) * 100;
+
+  const banner = document.createElement('div');
+  banner.className = 'profit-banner';
+  banner.innerHTML = `
+    <div class="label">🔒 Profit garanti, quelle que soit l'issue</div>
+    <div class="amount">${profitGaranti >= 0 ? '+' : ''}${profitGaranti.toLocaleString('fr-FR')} CFA</div>
+    <div class="note">${profitPct.toFixed(2)}% de ta mise totale</div>`;
+  results.appendChild(banner);
 
   sides.forEach((s, i) => {
     const row = document.createElement('div');
