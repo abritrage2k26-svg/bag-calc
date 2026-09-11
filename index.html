@@ -114,11 +114,21 @@
   }
   .result-row + .result-row{border-top:1px solid var(--line);}
   .result-name{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;}
+  .result-amount-wrap{display:flex;align-items:center;gap:8px;}
   .result-amount{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;}
   .result-amount.soft{color:var(--blue);}
   .result-amount.pin{color:var(--red);}
   .result-amount.s3{color:var(--gold);}
   .result-market{font-size:11.5px;color:var(--muted);margin-top:1px;}
+  .copy-btn{
+    width:30px;height:30px;flex:none;border-radius:9px;
+    background:var(--surface-2);border:1px solid var(--line);color:var(--muted);
+    font-size:13px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:all .15s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .copy-btn:active{transform:scale(0.92);}
+  .copy-btn.copied{background:rgba(232,162,61,0.15);border-color:var(--gold-dim);color:var(--gold);}
 
   .edge-line{
     display:flex;justify-content:space-between;font-size:12px;color:var(--muted);
@@ -248,6 +258,54 @@ const input = document.getElementById('capital');
 const results = document.getElementById('results');
 const hint = document.getElementById('hint');
 
+// ── Copier un montant en un clic (avec repli pour les navigateurs intégrés type
+// Telegram in-app, où l'API Clipboard moderne peut être indisponible ou restreinte
+// selon iOS/Android). Copie le nombre brut (point décimal, pas de séparateur de
+// milliers) pour un collage direct dans le champ de mise du bookmaker.
+function copierMontant(valeurBrute, boutonEl) {
+  const succes = () => {
+    const original = boutonEl.textContent;
+    boutonEl.textContent = '✓';
+    boutonEl.classList.add('copied');
+    setTimeout(() => { boutonEl.textContent = original; boutonEl.classList.remove('copied'); }, 1200);
+  };
+  const repli = () => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = valeurBrute;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      succes();
+    } catch (e) { /* rien à faire de plus — l'abonné recopiera à la main */ }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+    navigator.clipboard.writeText(valeurBrute).then(succes).catch(repli);
+  } else {
+    repli();
+  }
+}
+
+// ── Mémorise le dernier capital tapé (localStorage, propre à cet appareil — rien
+// n'est envoyé nulle part) pour ne pas avoir à le retaper à chaque nouveau signal.
+// Enveloppé en try/catch : certains navigateurs (navigation privée, contexte in-app
+// restreint) bloquent localStorage — l'app doit continuer à fonctionner sans, juste
+// sans cette commodité.
+const CLE_CAPITAL = 'bagcalc_dernier_capital';
+try {
+  const dernier = localStorage.getItem(CLE_CAPITAL);
+  if (dernier) input.value = dernier;
+} catch (e) {}
+
+function sauverCapital(valeur) {
+  try { localStorage.setItem(CLE_CAPITAL, valeur); } catch (e) {}
+}
+
 input.addEventListener('input', () => {
   const capital = parseFloat(input.value);
   if (!capital || capital <= 0 || sides.length < 2) {
@@ -255,6 +313,7 @@ input.addEventListener('input', () => {
     hint.style.display = '';
     return;
   }
+  sauverCapital(input.value);
   hint.style.display = 'none';
   results.style.display = '';
   results.innerHTML = '';
@@ -268,15 +327,23 @@ input.addEventListener('input', () => {
     // Pinnacle se dépose en euros, pas en CFA — on convertit ce montant précis avec le
     // taux transmis par le signal, arrondi au centime le plus proche (précision réelle
     // d'un dépôt Pinnacle), plutôt que de l'afficher en CFA comme les softs.
+    const montantEur = montants[i] / tx;
     const montantAffiche = s.estPinnacle
-      ? (montants[i] / tx).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+      ? montantEur.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
       : montants[i].toLocaleString('fr-FR') + ' CFA';
+    // Valeur copiée : nombre brut avec point décimal, jamais l'affichage formaté (espaces/
+    // virgules) qui casserait la saisie dans un champ numérique côté bookmaker.
+    const valeurCopie = s.estPinnacle ? montantEur.toFixed(2) : String(montants[i]);
     row.innerHTML = `
       <div>
         <div class="result-name"><span class="dot ${s.dotClass}"></span>${s.name}</div>
         <div class="result-market">${s.desc ? 'Parier sur : ' + s.desc : ''}</div>
       </div>
-      <span class="result-amount ${s.dotClass}">${montantAffiche}</span>`;
+      <div class="result-amount-wrap">
+        <span class="result-amount ${s.dotClass}">${montantAffiche}</span>
+        <button type="button" class="copy-btn" aria-label="Copier le montant">⧉</button>
+      </div>`;
+    row.querySelector('.copy-btn').addEventListener('click', (e) => copierMontant(valeurCopie, e.currentTarget));
     results.appendChild(row);
   });
 
@@ -285,6 +352,10 @@ input.addEventListener('input', () => {
   edgeRow.innerHTML = `<span>Edge annoncé</span><b>${meta.edge ? meta.edge + '%' : '—'}</b>`;
   results.appendChild(edgeRow);
 });
+
+// Si un capital a été restauré depuis localStorage au chargement, calcule et affiche
+// immédiatement la répartition sans attendre une première saisie de l'abonné.
+if (input.value) input.dispatchEvent(new Event('input'));
 </script>
 </body>
 </html>
