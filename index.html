@@ -144,8 +144,25 @@
   .profit-banner .amount{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:24px;color:var(--gold);margin-top:3px;}
   .profit-banner .note{font-size:11px;color:var(--muted);margin-top:3px;}
 
+  .min-warning{
+    background:rgba(255,92,92,0.08);border:1px solid rgba(255,92,92,0.3);
+    border-radius:12px;padding:13px 15px;margin-bottom:14px;font-size:12.5px;line-height:1.55;
+  }
+  .min-warning .title{color:var(--red);font-weight:700;font-size:12.5px;margin-bottom:4px;}
+  .min-warning b{color:var(--text);}
+
   .empty-hint{font-size:12.5px;color:var(--muted);padding:6px 0 2px;}
   .last-hint{font-size:11.5px;color:var(--gold-dim);padding:0 0 8px;}
+  .min-capital-hint{font-size:11px;color:var(--muted);padding:0 0 10px;}
+  .min-capital-hint b{color:var(--text);}
+
+  .min-warning{
+    background:rgba(255,92,92,0.08);border:1px solid rgba(255,92,92,0.3);
+    border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:12.5px;
+    line-height:1.55;color:var(--text);
+  }
+  .min-warning .label{font-size:10.5px;color:var(--red);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;}
+  .min-warning b{color:var(--red);}
 
   .explain-toggle{
     display:block;text-align:center;font-size:12px;color:var(--muted);
@@ -249,6 +266,36 @@ for (let i = 1; i <= 3; i++) {
 // retombe toujours exactement sur le capital tapé (jamais 10 050 au lieu de 10 000).
 const PAS_ARRONDI_CFA = 50;
 
+// Mises minimums réelles par bookmaker (mêmes valeurs vérifiées que côté terminal BAG) —
+// sans ce contrôle, un abonné avec un petit capital pourrait voir un montant affiché
+// comme normal alors qu'il serait en réalité refusé au moment de le placer chez le
+// bookmaker. Ne couvre que les 3 bookmakers connus par nom ; un 4e nom inconnu (rare,
+// signal mal formé) ne déclenche aucune vérification plutôt qu'une fausse alerte.
+const MIN_1XBET_CFA = 500;
+const MIN_1WIN_CFA = 500;
+const MIN_PINNACLE_EUR = 5;
+function minPourSide(s) {
+  if (s.estPinnacle) return { valeurCFA: MIN_PINNACLE_EUR * tx, label: MIN_PINNACLE_EUR + ' €' };
+  if (s.name === '1xBet') return { valeurCFA: MIN_1XBET_CFA, label: MIN_1XBET_CFA + ' CFA' };
+  if (s.name === '1Win') return { valeurCFA: MIN_1WIN_CFA, label: MIN_1WIN_CFA + ' CFA' };
+  return null;
+}
+
+// Mises minimums réelles acceptées par chaque bookmaker (mêmes valeurs vérifiées que côté
+// terminal BAG-PAS) — sans ce contrôle, la calculatrice pouvait afficher un montant que
+// l'abonné ne pourrait en réalité pas placer chez le bookmaker (rejeté comme "mise trop
+// faible"), sans qu'il comprenne pourquoi.
+const MINIMUMS = { '1xBet': { valeur: 500, unite: 'CFA' }, '1Win': { valeur: 500, unite: 'CFA' }, 'Pinnacle': { valeur: 5, unite: '€' } };
+function minPourSide(s) {
+  return MINIMUMS[s.name] || { valeur: 500, unite: 'CFA' }; // repli prudent si un nom inattendu apparaît
+}
+// Convertit le minimum natif d'un côté (CFA ou EUR) en équivalent CFA, pour pouvoir le
+// comparer directement aux montants calculés (toujours en CFA en interne, voir plus bas).
+function minEnCfa(s) {
+  const m = minPourSide(s);
+  return m.unite === '€' ? m.valeur * tx : m.valeur;
+}
+
 // ── Remplissage du récap ──
 function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
 function setShow(id, show) { const el = document.getElementById(id); if (el) el.style.display = show ? '' : 'none'; }
@@ -267,6 +314,15 @@ let pcts = [];
 if (sides.length >= 2) {
   const arb = sides.reduce((s, x) => s + (1 / x.cote), 0);
   pcts = sides.map(x => ((1 / x.cote) / arb) * 100);
+}
+
+// ── Capital minimum pour que TOUS les côtés dépassent leur minimum bookmaker — calculé
+// une fois, affiché avant même que l'abonné tape quoi que ce soit (guidage proactif),
+// et réutilisé pour détecter un capital insuffisant pendant la saisie.
+let capitalMinSuggere = null;
+if (sides.length >= 2) {
+  const minsParSide = sides.map((s, i) => minEnCfa(s) / (pcts[i] / 100));
+  capitalMinSuggere = Math.ceil(Math.max(...minsParSide) / PAS_ARRONDI_CFA) * PAS_ARRONDI_CFA;
 }
 
 const rowsEl = document.getElementById('rows');
@@ -368,6 +424,36 @@ input.addEventListener('input', () => {
 
   const montants = pcts.slice(0, -1).map(pct => Math.round(capital * pct / 100 / PAS_ARRONDI_CFA) * PAS_ARRONDI_CFA);
   montants.push(Math.round(capital - montants.reduce((a, b) => a + b, 0)));
+
+  // ── Vérifie que chaque montant calculé respecte le minimum réel du bookmaker
+  // correspondant — sinon le montant affiché a l'air normal mais serait en réalité
+  // refusé au moment de le placer. Calcule aussi le capital minimum nécessaire (le plus
+  // grand des minimums requis par chaque côté, ramené à un capital total via son
+  // pourcentage) pour que ce signal précis soit plaçable partout à la fois.
+  const violations = [];
+  let capitalMinConseille = 0;
+  sides.forEach((s, i) => {
+    const info = minPourSide(s);
+    if (!info) return;
+    const valeurNative = s.estPinnacle ? montants[i] / tx : montants[i];
+    const valeurMinNative = s.estPinnacle ? MIN_PINNACLE_EUR : info.valeurCFA;
+    if (valeurNative < valeurMinNative) violations.push({ s, info });
+    // Capital nécessaire pour que CE côté seul atteigne son minimum, à proportion
+    // constante — arrondi au 100 CFA supérieur avec une petite marge pour absorber
+    // l'arrondi réel des mises (jamais un chiffre tout juste à la limite).
+    const capNecessaire = Math.ceil((info.valeurCFA / (pcts[i] / 100)) * 1.05 / 100) * 100;
+    if (capNecessaire > capitalMinConseille) capitalMinConseille = capNecessaire;
+  });
+
+  if (violations.length) {
+    const warn = document.createElement('div');
+    warn.className = 'min-warning';
+    const listeNoms = violations.map(v => `<b>${v.s.name}</b> (min ${v.info.label})`).join(', ');
+    warn.innerHTML = `⚠️ <span class="title">Montant trop faible pour ${violations.length > 1 ? 'ces bookmakers' : 'ce bookmaker'}</span><br>
+      ${listeNoms} — ce pari serait refusé tel quel.<br>
+      Tape au moins <b>${capitalMinConseille.toLocaleString('fr-FR')} CFA</b> pour que ce signal soit plaçable partout.`;
+    results.appendChild(warn);
+  }
 
   // ── Profit garanti — le MINIMUM du profit sur chacune des issues possibles (pas une
   // moyenne). Avec l'arrondi des mises, le profit réel diffère légèrement selon qui
