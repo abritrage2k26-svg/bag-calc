@@ -468,15 +468,15 @@ const clotureRows = document.getElementById('clotureRows');
 function construireLignesCloture() {
   clotureRows.innerHTML = sides.map((s, i) => `
     <div class="cloture-bk">
-      <div class="cloture-bk-name"><span class="dot ${s.dotClass}"></span>${s.name}</div>
+      <div class="cloture-bk-name"><span class="dot ${s.dotClass}"></span>${s.name}${s.estPinnacle ? ' <span style="color:#8a9490;font-weight:500;font-size:11px;">(en €)</span>' : ' <span style="color:#8a9490;font-weight:500;font-size:11px;">(en CFA)</span>'}</div>
       <div class="cloture-row">
         <div class="cloture-field">
           <label>Avant</label>
-          <input type="number" class="cloture-avant" data-idx="${i}" inputmode="numeric" placeholder="0">
+          <input type="number" step="0.01" class="cloture-avant" data-idx="${i}" inputmode="decimal" placeholder="0">
         </div>
         <div class="cloture-field">
           <label>Maintenant</label>
-          <input type="number" class="cloture-apres" data-idx="${i}" inputmode="numeric" placeholder="0">
+          <input type="number" step="0.01" class="cloture-apres" data-idx="${i}" inputmode="decimal" placeholder="0">
         </div>
       </div>
     </div>`).join('');
@@ -496,8 +496,15 @@ function calculerCloture() {
     clotureResultat.style.display = 'none';
     return;
   }
-  const totalAvant = valeursAvant.reduce((a, b) => a + b, 0);
-  const totalApres = valeursApres.reduce((a, b) => a + b, 0);
+  // Pinnacle est saisi en EUROS (c'est sa vraie devise de dépôt, voir le libellé "(en €)"
+  // sur son champ) — converti en équivalent CFA via le taux transmis par le signal AVANT
+  // toute addition, sinon le total mélangerait deux devises différentes sans le dire.
+  // data-idx permet de retrouver, pour chaque champ, le côté (et donc la devise) auquel
+  // il appartient, même si l'ordre des champs générés ne correspond pas à l'ordre des
+  // querySelectorAll par hasard.
+  const convertir = (valeur, idx) => sides[idx] && sides[idx].estPinnacle ? valeur * tx : valeur;
+  const totalAvant = champsAvant.reduce((som, el, i) => som + convertir(valeursAvant[i], parseInt(el.dataset.idx, 10)), 0);
+  const totalApres = champsApres.reduce((som, el, i) => som + convertir(valeursApres[i], parseInt(el.dataset.idx, 10)), 0);
   if (totalAvant <= 0) {
     clotureResultat.style.display = 'none';
     return;
