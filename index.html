@@ -592,9 +592,16 @@ input.addEventListener('input', () => {
   // moyenne). Avec l'arrondi des mises, le profit réel diffère légèrement selon qui
   // gagne ; le montant "garanti" est celui qu'on touche même dans le pire des cas,
   // exactement la même logique que côté terminal (validerProfitMin côté app BAG-PAS).
-  const profitsParIssue = sides.map((s, i) => montants[i] * s.cote - capital);
+  // IMPORTANT : la référence est le TOTAL RÉELLEMENT ENGAGÉ (somme des montants après
+  // arrondi indépendant de chaque côté), pas le capital tapé — depuis que chaque côté
+  // s'arrondit indépendamment (plus de "dernier côté absorbe le reste"), la somme réelle
+  // dévie légèrement du capital tapé. Utiliser le capital comme référence ici gonflait
+  // artificiellement le profit affiché (bug réel constaté : +118 CFA affichés à l'abonné
+  // contre +97 CFA réellement calculés côté terminal pour la même opération).
+  const totalEngage = montants.reduce((a, b) => a + b, 0);
+  const profitsParIssue = sides.map((s, i) => montants[i] * s.cote - totalEngage);
   const profitGaranti = Math.floor(Math.min(...profitsParIssue));
-  const profitPct = (profitGaranti / capital) * 100;
+  const profitPct = (profitGaranti / totalEngage) * 100;
   dernierProfitGaranti = profitGaranti;
 
   const banner = document.createElement('div');
