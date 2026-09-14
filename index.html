@@ -191,6 +191,8 @@
     border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;
   }
   .cloture-note b{color:var(--text);}
+  .cloture-bk{margin-bottom:12px;}
+  .cloture-bk-name{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--text);margin-bottom:6px;}
   .cloture-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .cloture-field label{display:block;font-size:10.5px;color:var(--muted);margin-bottom:6px;}
   .cloture-field input{
@@ -262,17 +264,8 @@
 
     <button type="button" class="cloture-toggle" id="clotureToggle">✅ Le match est terminé ? Calcule ton vrai gain →</button>
     <div class="cloture-box" id="clotureBox">
-      <div class="cloture-note">⚠️ Additionne <b>tous les comptes utilisés pour ce signal</b> (les deux ou trois côtés) — un seul compte "perd" sa mise, c'est normal en arbitrage. Compare le <b>total combiné</b>, jamais un compte isolément.</div>
-      <div class="cloture-row">
-        <div class="cloture-field">
-          <label>Tu avais (avant)</label>
-          <input type="number" id="clotureAvant" inputmode="numeric" placeholder="10000">
-        </div>
-        <div class="cloture-field">
-          <label>Tu as (maintenant)</label>
-          <input type="number" id="clotureApres" inputmode="numeric" placeholder="10150">
-        </div>
-      </div>
+      <div class="cloture-note">⚠️ Un champ par compte utilisé pour ce signal — un seul compte "perd" sa mise, c'est normal en arbitrage. Le total se calcule tout seul, pas besoin d'additionner toi-même.</div>
+      <div id="clotureRows"></div>
       <div class="cloture-resultat" id="clotureResultat"></div>
     </div>
   </div>
@@ -458,8 +451,6 @@ explainToggle.addEventListener('click', () => {
 // (qui, lui, est théorique et pré-match) — ceci est le résultat réel, déclaré à la main.
 const clotureToggle = document.getElementById('clotureToggle');
 const clotureBox = document.getElementById('clotureBox');
-const clotureAvant = document.getElementById('clotureAvant');
-const clotureApres = document.getElementById('clotureApres');
 const clotureResultat = document.getElementById('clotureResultat');
 
 clotureToggle.addEventListener('click', () => {
@@ -468,15 +459,51 @@ clotureToggle.addEventListener('click', () => {
   clotureToggle.textContent = ouvert ? "✅ Le match est terminé ? Calcule ton vrai gain →" : "Masquer ↑";
 });
 
+// ── Génère UN champ avant/après PAR CÔTÉ réellement présent dans ce signal (2 ou 3
+// selon le mode) — plutôt que deux champs génériques qui obligeaient l'abonné à
+// additionner ses comptes lui-même dans sa tête avant de taper quoi que ce soit. Chaque
+// paire est étiquetée avec le vrai nom du bookmaker, cohérent avec la répartition
+// affichée plus haut sur la même page.
+const clotureRows = document.getElementById('clotureRows');
+function construireLignesCloture() {
+  clotureRows.innerHTML = sides.map((s, i) => `
+    <div class="cloture-bk">
+      <div class="cloture-bk-name"><span class="dot ${s.dotClass}"></span>${s.name}</div>
+      <div class="cloture-row">
+        <div class="cloture-field">
+          <label>Avant</label>
+          <input type="number" class="cloture-avant" data-idx="${i}" inputmode="numeric" placeholder="0">
+        </div>
+        <div class="cloture-field">
+          <label>Maintenant</label>
+          <input type="number" class="cloture-apres" data-idx="${i}" inputmode="numeric" placeholder="0">
+        </div>
+      </div>
+    </div>`).join('');
+  clotureRows.querySelectorAll('.cloture-avant, .cloture-apres').forEach(el => el.addEventListener('input', calculerCloture));
+}
+construireLignesCloture();
+
 function calculerCloture() {
-  const avant = parseFloat(clotureAvant.value);
-  const apres = parseFloat(clotureApres.value);
-  if (!avant || avant <= 0 || !apres && apres !== 0) {
+  const champsAvant = Array.from(document.querySelectorAll('.cloture-avant'));
+  const champsApres = Array.from(document.querySelectorAll('.cloture-apres'));
+  // Exige que TOUS les champs soient remplis avant de calculer quoi que ce soit — un
+  // total partiel (ex. 2 comptes sur 3 renseignés) donnerait un chiffre faux sans que
+  // rien ne le signale comme incomplet.
+  const valeursAvant = champsAvant.map(el => parseFloat(el.value));
+  const valeursApres = champsApres.map(el => parseFloat(el.value));
+  if (valeursAvant.some(v => isNaN(v)) || valeursApres.some(v => isNaN(v))) {
     clotureResultat.style.display = 'none';
     return;
   }
-  const profitReel = Math.round(apres - avant);
-  const profitPctReel = (profitReel / avant) * 100;
+  const totalAvant = valeursAvant.reduce((a, b) => a + b, 0);
+  const totalApres = valeursApres.reduce((a, b) => a + b, 0);
+  if (totalAvant <= 0) {
+    clotureResultat.style.display = 'none';
+    return;
+  }
+  const profitReel = Math.round(totalApres - totalAvant);
+  const profitPctReel = (profitReel / totalAvant) * 100;
   const gagne = profitReel >= 0;
   clotureResultat.className = 'cloture-resultat ' + (gagne ? 'gagne' : 'perdu');
   // Compare au profit garanti annoncé pré-match, quand il a été calculé sur cette même
@@ -493,8 +520,6 @@ function calculerCloture() {
     ${ligneCompare}`;
   clotureResultat.style.display = 'block';
 }
-clotureAvant.addEventListener('input', calculerCloture);
-clotureApres.addEventListener('input', calculerCloture);
 
 input.addEventListener('input', () => {
   const capital = parseFloat(input.value);
@@ -504,10 +529,6 @@ input.addEventListener('input', () => {
     return;
   }
   sauverCapital(input.value);
-  // Préremplit "Tu avais (avant)" avec ce même capital — seulement s'il est encore vide,
-  // jamais s'il contient déjà une vraie valeur tapée par l'abonné (ne jamais écraser une
-  // saisie existante, même en revenant retoucher le capital de départ après coup).
-  if (!clotureAvant.value) clotureAvant.value = input.value;
   lastHint.style.display = 'none';
   hint.style.display = 'none';
   results.style.display = '';
