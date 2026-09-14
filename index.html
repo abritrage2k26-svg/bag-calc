@@ -541,8 +541,22 @@ input.addEventListener('input', () => {
   results.style.display = '';
   results.innerHTML = '';
 
-  const montants = pcts.slice(0, -1).map(pct => Math.round(capital * pct / 100 / PAS_ARRONDI_CFA) * PAS_ARRONDI_CFA);
-  montants.push(Math.round(capital - montants.reduce((a, b) => a + b, 0)));
+  // Chaque côté est arrondi INDÉPENDAMMENT à sa propre précision naturelle — 50 CFA pour
+  // les softs, au centime d'euro près pour Pinnacle — exactement comme le fait le
+  // terminal BAG-PAS en interne. AUCUN côté n'absorbe le reste pour forcer un total qui
+  // tombe pile sur le capital tapé : cette ancienne méthode (dernier côté = capital -
+  // somme des autres) désynchronisait légèrement le montant Pinnacle affiché ici de ce
+  // que le terminal calcule réellement (jusqu'à quelques centimes d'écart, bug réel
+  // constaté en comparant les deux formules côte à côte). Un total qui dévie de quelques
+  // CFA par rapport au capital tapé est normal et déjà accepté côté terminal — préférable
+  // à un total “trop parfait” qui cache une désynchronisation avec la vraie mise à placer.
+  const montants = sides.map((s, i) => {
+    if (s.estPinnacle) {
+      const eur = parseFloat((capital * pcts[i] / 100 / tx).toFixed(2));
+      return eur * tx;
+    }
+    return Math.round(capital * pcts[i] / 100 / PAS_ARRONDI_CFA) * PAS_ARRONDI_CFA;
+  });
 
   // ── Vérifie que chaque montant calculé respecte le minimum réel du bookmaker
   // correspondant — sinon le montant affiché a l'air normal mais serait en réalité
