@@ -177,6 +177,34 @@
   }
   .explain-box b{color:var(--text);}
 
+  .cloture-toggle{
+    display:block;text-align:center;font-size:12.5px;color:var(--gold);
+    font-weight:600;cursor:pointer;margin-top:18px;padding-top:16px;
+    border-top:1px solid var(--line);background:none;border-left:none;border-right:none;
+    border-bottom:none;width:100%;font-family:inherit;-webkit-tap-highlight-color:transparent;
+  }
+  .cloture-box{
+    display:none;margin-top:12px;
+  }
+  .cloture-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .cloture-field label{display:block;font-size:10.5px;color:var(--muted);margin-bottom:6px;}
+  .cloture-field input{
+    width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;
+    padding:11px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-weight:600;
+    font-size:15px;text-align:center;outline:none;
+  }
+  .cloture-field input:focus{border-color:var(--gold-dim);}
+  .cloture-resultat{
+    display:none;margin-top:12px;text-align:center;border-radius:12px;padding:14px;
+  }
+  .cloture-resultat.gagne{background:rgba(232,162,61,0.08);border:1px solid rgba(232,162,61,0.3);}
+  .cloture-resultat.perdu{background:rgba(255,92,92,0.08);border:1px solid rgba(255,92,92,0.3);}
+  .cloture-resultat .montant{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;}
+  .cloture-resultat.gagne .montant{color:var(--gold);}
+  .cloture-resultat.perdu .montant{color:var(--red);}
+  .cloture-resultat .pct{font-size:12px;color:var(--muted);margin-top:2px;}
+  .cloture-resultat .compare{font-size:11px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--line);}
+
   .foot{
     text-align:center;font-size:11px;color:#4a5451;margin-top:20px;line-height:1.6;
   }
@@ -225,6 +253,21 @@
     <button type="button" class="explain-toggle" id="explainToggle">Pourquoi miser sur les deux côtés ? →</button>
     <div class="explain-box" id="explainBox">
       C'est le principe de l'arbitrage : au lieu de parier sur un seul résultat, on couvre <b>toutes les issues possibles</b> chez des bookmakers différents, avec des cotes qui compensent leurs écarts. Résultat : <b>peu importe qui gagne</b>, la somme totale récupérée dépasse toujours la mise totale engagée — le profit ci-dessus est garanti avant même le coup d'envoi, pas un pronostic.
+    </div>
+
+    <button type="button" class="cloture-toggle" id="clotureToggle">✅ Le match est terminé ? Calcule ton vrai gain →</button>
+    <div class="cloture-box" id="clotureBox">
+      <div class="cloture-row">
+        <div class="cloture-field">
+          <label>Tu avais (avant)</label>
+          <input type="number" id="clotureAvant" inputmode="numeric" placeholder="10000">
+        </div>
+        <div class="cloture-field">
+          <label>Tu as (maintenant)</label>
+          <input type="number" id="clotureApres" inputmode="numeric" placeholder="10150">
+        </div>
+      </div>
+      <div class="cloture-resultat" id="clotureResultat"></div>
     </div>
   </div>
 
@@ -374,6 +417,9 @@ function copierMontant(valeurBrute, boutonEl) {
 // restreint) bloquent localStorage — l'app doit continuer à fonctionner sans, juste
 // sans cette commodité.
 const CLE_CAPITAL = 'bagcalc_dernier_capital';
+// Mémorise le dernier profit garanti calculé (voir plus bas), pour la comparaison
+// affichée dans le volet "Calcule ton vrai gain" une fois le match terminé.
+let dernierProfitGaranti = null;
 const lastHint = document.getElementById('lastHint');
 try {
   const dernier = localStorage.getItem(CLE_CAPITAL);
@@ -400,6 +446,50 @@ explainToggle.addEventListener('click', () => {
   explainToggle.textContent = ouvert ? 'Pourquoi miser sur les deux côtés ? →' : 'Masquer l\'explication ↑';
 });
 
+// ── Volet "Calcule ton vrai gain" — repli par défaut, pour un abonné qui revient sur ce
+// MÊME lien une fois le match terminé, pour transformer "avant/après" en un profit net
+// lisible sans calcul mental. Complètement indépendant du profit garanti affiché plus haut
+// (qui, lui, est théorique et pré-match) — ceci est le résultat réel, déclaré à la main.
+const clotureToggle = document.getElementById('clotureToggle');
+const clotureBox = document.getElementById('clotureBox');
+const clotureAvant = document.getElementById('clotureAvant');
+const clotureApres = document.getElementById('clotureApres');
+const clotureResultat = document.getElementById('clotureResultat');
+
+clotureToggle.addEventListener('click', () => {
+  const ouvert = clotureBox.style.display === 'block';
+  clotureBox.style.display = ouvert ? 'none' : 'block';
+  clotureToggle.textContent = ouvert ? "✅ Le match est terminé ? Calcule ton vrai gain →" : "Masquer ↑";
+});
+
+function calculerCloture() {
+  const avant = parseFloat(clotureAvant.value);
+  const apres = parseFloat(clotureApres.value);
+  if (!avant || avant <= 0 || !apres && apres !== 0) {
+    clotureResultat.style.display = 'none';
+    return;
+  }
+  const profitReel = Math.round(apres - avant);
+  const profitPctReel = (profitReel / avant) * 100;
+  const gagne = profitReel >= 0;
+  clotureResultat.className = 'cloture-resultat ' + (gagne ? 'gagne' : 'perdu');
+  // Compare au profit garanti annoncé pré-match, quand il a été calculé sur cette même
+  // page (dernierProfitGaranti) — purement informatif, pour voir si le résultat réel colle
+  // à la promesse initiale, jamais une correction du montant que l'abonné a lui-même tapé.
+  let ligneCompare = '';
+  if (dernierProfitGaranti !== null) {
+    const ecart = profitReel - dernierProfitGaranti;
+    ligneCompare = `<div class="compare">Profit garanti annoncé avant le match : ${dernierProfitGaranti >= 0 ? '+' : ''}${dernierProfitGaranti.toLocaleString('fr-FR')} CFA (écart : ${ecart >= 0 ? '+' : ''}${Math.round(ecart).toLocaleString('fr-FR')} CFA)</div>`;
+  }
+  clotureResultat.innerHTML = `
+    <div class="montant">${gagne ? '+' : ''}${profitReel.toLocaleString('fr-FR')} CFA</div>
+    <div class="pct">${profitPctReel >= 0 ? '+' : ''}${profitPctReel.toFixed(2)}% de ta mise de départ</div>
+    ${ligneCompare}`;
+  clotureResultat.style.display = 'block';
+}
+clotureAvant.addEventListener('input', calculerCloture);
+clotureApres.addEventListener('input', calculerCloture);
+
 input.addEventListener('input', () => {
   const capital = parseFloat(input.value);
   if (!capital || capital <= 0 || sides.length < 2) {
@@ -408,6 +498,10 @@ input.addEventListener('input', () => {
     return;
   }
   sauverCapital(input.value);
+  // Préremplit "Tu avais (avant)" avec ce même capital — seulement s'il est encore vide,
+  // jamais s'il contient déjà une vraie valeur tapée par l'abonné (ne jamais écraser une
+  // saisie existante, même en revenant retoucher le capital de départ après coup).
+  if (!clotureAvant.value) clotureAvant.value = input.value;
   lastHint.style.display = 'none';
   hint.style.display = 'none';
   results.style.display = '';
@@ -453,6 +547,7 @@ input.addEventListener('input', () => {
   const profitsParIssue = sides.map((s, i) => montants[i] * s.cote - capital);
   const profitGaranti = Math.floor(Math.min(...profitsParIssue));
   const profitPct = (profitGaranti / capital) * 100;
+  dernierProfitGaranti = profitGaranti;
 
   const banner = document.createElement('div');
   banner.className = 'profit-banner';
