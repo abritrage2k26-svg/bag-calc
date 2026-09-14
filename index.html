@@ -186,6 +186,11 @@
   .cloture-box{
     display:none;margin-top:12px;
   }
+  .cloture-note{
+    font-size:11.5px;color:var(--muted);line-height:1.5;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;
+  }
+  .cloture-note b{color:var(--text);}
   .cloture-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .cloture-field label{display:block;font-size:10.5px;color:var(--muted);margin-bottom:6px;}
   .cloture-field input{
@@ -257,6 +262,7 @@
 
     <button type="button" class="cloture-toggle" id="clotureToggle">✅ Le match est terminé ? Calcule ton vrai gain →</button>
     <div class="cloture-box" id="clotureBox">
+      <div class="cloture-note">⚠️ Additionne <b>tous les comptes utilisés pour ce signal</b> (les deux ou trois côtés) — un seul compte "perd" sa mise, c'est normal en arbitrage. Compare le <b>total combiné</b>, jamais un compte isolément.</div>
       <div class="cloture-row">
         <div class="cloture-field">
           <label>Tu avais (avant)</label>
