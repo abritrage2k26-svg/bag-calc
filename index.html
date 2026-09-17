@@ -408,7 +408,7 @@ if (estSauvetage && sides.length >= 2) {
 
   const explainToggleEl = document.getElementById('explainToggle');
   const explainBoxEl = document.getElementById('explainBox');
-  explainBoxEl.innerHTML = `La cote a bougé chez Pinnacle après que tu aies déjà misé sur ${sides[0].name}. Cette mise de protection est calculée pour que, <b>si Pinnacle gagne</b>, tu récupères exactement ce que tu avais engagé (ni gain ni perte — capital protégé). <b>Si ${sides[0].name} gagne quand même</b> à sa cote d'origine, tu gagnes en plus.`;
+  explainBoxEl.innerHTML = `La cote a bougé chez Pinnacle après que tu aies déjà misé sur ${sides[0].name}. Cette mise de protection est calculée pour que <b>le résultat soit exactement le même</b>, peu importe qui gagne — ${sides[0].name} ou Pinnacle. Si la cote n'a pas trop chuté, ce montant est un <b>vrai profit garanti</b>. Si elle a beaucoup chuté, aucune formule ne peut garantir un gain des deux côtés à la fois — ce montant est alors <b>la plus petite perte possible</b>, toujours identique quelle que soit l'issue plutôt que de risquer une grosse perte d'un côté.`;
 
   const sauvetageInput = document.getElementById('sauvetageMise');
   const sauvetageResults = document.getElementById('sauvetageResults');
@@ -424,16 +424,19 @@ if (estSauvetage && sides.length >= 2) {
       return;
     }
     sauvetageHint.style.display = 'none';
-    // Même formule que le terminal BAG (calculerSauvetage) : la mise Pinnacle protège
-    // exactement le capital déjà engagé si Pinnacle gagne, sans rien garantir de plus —
-    // voir cSauvetage - 1 au dénominateur, jamais 0 grâce au filtre cSauvetage > 1 côté
-    // terminal en amont.
-    const miseP_Eur = (miseDejaEngagee / tx) / (cSauvetage - 1);
-    const miseP_Cfa = miseP_Eur * tx;
+    // Égalise EXACTEMENT les deux issues (Pinnacle gagne / soft gagne à sa cote d'origine)
+    // — même formule que le terminal BAG (calculerSauvetage) : miseP = mise déjà engagée ×
+    // cote d'origine / nouvelle cote. Résultat : soit un vrai profit garanti des deux côtés
+    // (si l'arbitrage tient encore malgré la chute de cote), soit la perte la plus faible
+    // possible répartie également — jamais un résultat où gagner peut donner 0 CFA et
+    // l'autre issue une grosse perte.
+    const miseP_Cfa = miseDejaEngagee * cOrigine / cSauvetage;
+    const miseP_Eur = miseP_Cfa / tx;
     const totalEngage = miseDejaEngagee + miseP_Cfa;
-    const profitSiOrigineGagne = Math.floor(miseDejaEngagee * cOrigine - totalEngage);
+    const resultatGaranti = Math.floor(miseP_Eur * cSauvetage * tx - totalEngage + 1e-6);
 
     sauvetageResults.style.display = '';
+    const gagne = resultatGaranti >= 0;
     sauvetageResults.innerHTML = `
       <div class="result-row" style="border-top:none;">
         <div class="result-info">
@@ -442,14 +445,12 @@ if (estSauvetage && sides.length >= 2) {
         </div>
         <span class="result-amount">${miseP_Eur.toFixed(2)} €</span>
       </div>
-      <div class="profit-banner">
-        <div class="label">🔒 Si Pinnacle gagne</div>
-        <div class="amount">Capital protégé (≈ 0 CFA)</div>
-        <div class="note">Tu récupères exactement ce que tu avais engagé au total.</div>
-      </div>
-      <div class="profit-banner" style="margin-top:10px;">
-        <div class="label">✅ Si ${sides[0].name} gagne (cote d'origine ${cOrigine})</div>
-        <div class="amount">${profitSiOrigineGagne >= 0 ? '+' : ''}${profitSiOrigineGagne.toLocaleString('fr-FR')} CFA</div>
+      <div class="profit-banner" style="${gagne ? '' : 'border-color:rgba(255,92,92,0.3);background:rgba(255,92,92,0.06);'}">
+        <div class="label" style="${gagne ? '' : 'color:var(--red);'}">${gagne ? '🔒 Résultat garanti, peu importe qui gagne' : '⚠️ Perte minimisée, peu importe qui gagne'}</div>
+        <div class="amount" style="${gagne ? '' : 'color:var(--red);'}">${resultatGaranti >= 0 ? '+' : ''}${resultatGaranti.toLocaleString('fr-FR')} CFA</div>
+        <div class="note">${gagne
+          ? 'Que Pinnacle ou ' + sides[0].name + ' gagne, tu obtiens exactement ce montant.'
+          : "La cote a trop chuté pour un vrai sauvetage — ceci est la plus petite perte possible, identique quelle que soit l'issue."}</div>
       </div>`;
   });
 }
