@@ -261,7 +261,7 @@
         <span class="cur">CFA</span>
         <input type="number" id="sauvetageMise" inputmode="numeric" placeholder="3000" autofocus>
       </div>
-      <div class="empty-hint" id="sauvetageHint">Tape ce que tu avais déjà misé pour voir la mise de protection à placer sur Pinnacle.</div>
+      <div class="empty-hint" id="sauvetageHint">Tape ce que tu avais déjà misé pour voir la mise de protection à placer.</div>
     </div>
 
     <div class="results" id="results" style="display:none;"></div>
@@ -310,7 +310,13 @@ for (let i = 1; i <= 3; i++) {
   const name = p.get('n' + i);
   const cote = parseFloat(p.get('c' + i));
   if (!name || !cote) continue;
-  sides.push({ name, cote, desc: p.get('d' + i) || '', dotClass: i === 1 ? 'soft' : i === 2 ? 'pin' : 's3', estPinnacle: name === 'Pinnacle' });
+  // Le point du côté 2 n'est rouge ("pin") QUE si ce côté est réellement Pinnacle — sinon
+  // bleu ("soft"), comme le côté 1. Bug réel constaté sans cette distinction : un arb ou un
+  // sauvetage 100% entre softs affichait quand même un point rouge (couleur Pinnacle) sur
+  // le 2e côté, alors qu'il s'agissait d'un autre soft (1xBet/1Win). Le 3e côté (mode 3
+  // issues) garde sa couleur dédiée ("s3") quel que soit le bookmaker, pour rester
+  // visuellement distinct des deux premiers.
+  sides.push({ name, cote, desc: p.get('d' + i) || '', dotClass: i === 1 ? 'soft' : i === 2 ? (name === 'Pinnacle' ? 'pin' : 'soft') : 's3', estPinnacle: name === 'Pinnacle' });
 }
 
 // Pas d'arrondi identique au terminal BAG (voir PAS_ARRONDI_CFA côté app) — une mise
@@ -408,13 +414,19 @@ if (estSauvetage && sides.length >= 2) {
 
   const explainToggleEl = document.getElementById('explainToggle');
   const explainBoxEl = document.getElementById('explainBox');
-  explainBoxEl.innerHTML = `La cote a bougé chez Pinnacle après que tu aies déjà misé sur ${sides[0].name}. Cette mise de protection est calculée pour que <b>le résultat soit exactement le même</b>, peu importe qui gagne — ${sides[0].name} ou Pinnacle. Si la cote n'a pas trop chuté, ce montant est un <b>vrai profit garanti</b>. Si elle a beaucoup chuté, aucune formule ne peut garantir un gain des deux côtés à la fois — ce montant est alors <b>la plus petite perte possible</b>, toujours identique quelle que soit l'issue plutôt que de risquer une grosse perte d'un côté.`;
+  // Nom de la cible généralisé (sides[1].name) — ce n'est plus toujours "Pinnacle" : un
+  // sauvetage peut désormais viser l'autre soft (1xBet/1Win) directement, sans passer par
+  // Pinnacle du tout. Texte construit dynamiquement à partir du VRAI nom transmis par le
+  // lien (paramètre n2), jamais du mot "Pinnacle" en dur.
+  const nomCible = sides[1].name;
+  explainBoxEl.innerHTML = `La cote a bougé chez ${nomCible} après que tu aies déjà misé sur ${sides[0].name}. Cette mise de protection est calculée pour que <b>le résultat soit exactement le même</b>, peu importe qui gagne — ${sides[0].name} ou ${nomCible}. Si la cote n'a pas trop chuté, ce montant est un <b>vrai profit garanti</b>. Si elle a beaucoup chuté, aucune formule ne peut garantir un gain des deux côtés à la fois — ce montant est alors <b>la plus petite perte possible</b>, toujours identique quelle que soit l'issue plutôt que de risquer une grosse perte d'un côté.`;
 
   const sauvetageInput = document.getElementById('sauvetageMise');
   const sauvetageResults = document.getElementById('sauvetageResults');
   const sauvetageHint = document.getElementById('sauvetageHint');
   const cOrigine = sides[0].cote;   // cote d'origine du soft, déjà misée
-  const cSauvetage = sides[1].cote; // nouvelle cote Pinnacle de sauvetage
+  const cSauvetage = sides[1].cote; // nouvelle cote de la cible (Pinnacle ou l'autre soft), de sauvetage
+  const cibleEstPinnacle = sides[1].estPinnacle; // devise d'affichage : € pour Pinnacle, CFA sinon
 
   sauvetageInput.addEventListener('input', () => {
     const miseDejaEngagee = parseFloat(sauvetageInput.value);
@@ -424,32 +436,43 @@ if (estSauvetage && sides.length >= 2) {
       return;
     }
     sauvetageHint.style.display = 'none';
-    // Égalise EXACTEMENT les deux issues (Pinnacle gagne / soft gagne à sa cote d'origine)
-    // — même formule que le terminal BAG (calculerSauvetage) : miseP = mise déjà engagée ×
-    // cote d'origine / nouvelle cote. Résultat : soit un vrai profit garanti des deux côtés
-    // (si l'arbitrage tient encore malgré la chute de cote), soit la perte la plus faible
+    // Égalise EXACTEMENT les deux issues (la cible gagne / soft gagne à sa cote d'origine)
+    // — même formule que le terminal BAG (calculerSauvetage) : mise cible = mise déjà
+    // engagée × cote d'origine / nouvelle cote. Formule valable quelle que soit la cible
+    // (Pinnacle ou l'autre soft) — c'est un rapport de cotes, indépendant de la devise
+    // native du bookmaker. Résultat : soit un vrai profit garanti des deux côtés (si
+    // l'arbitrage tient encore malgré la chute de cote), soit la perte la plus faible
     // possible répartie également — jamais un résultat où gagner peut donner 0 CFA et
     // l'autre issue une grosse perte.
     const miseP_Cfa = miseDejaEngagee * cOrigine / cSauvetage;
     const miseP_Eur = miseP_Cfa / tx;
     const totalEngage = miseDejaEngagee + miseP_Cfa;
-    const resultatGaranti = Math.floor(miseP_Eur * cSauvetage * tx - totalEngage + 1e-6);
+    // Généralisé sur miseP_Cfa directement (équivalent CFA, valable quel que soit le
+    // bookmaker) plutôt que sur le détour "miseP_Eur * cSauvetage * tx", qui ne voulait
+    // rien dire hors Pinnacle — mathématiquement identique pour Pinnacle (miseP_Eur * tx
+    // === miseP_Cfa exactement), mais correct aussi pour l'autre soft.
+    const resultatGaranti = Math.floor(miseP_Cfa * cSauvetage - totalEngage + 1e-6);
 
     sauvetageResults.style.display = '';
     const gagne = resultatGaranti >= 0;
+    // Affichage en euros UNIQUEMENT si la cible est Pinnacle (sa vraie devise de dépôt) —
+    // en CFA sinon, comme n'importe quel soft. Bug réel constaté sans cette distinction :
+    // un sauvetage vers l'autre soft affichait quand même "X.XX €", un montant dans la
+    // mauvaise devise ET le mauvais bookmaker ("Pinnacle" écrit en dur) à la fois.
+    const montantAffiche = cibleEstPinnacle ? `${miseP_Eur.toFixed(2)} €` : `${Math.round(miseP_Cfa).toLocaleString('fr-FR')} CFA`;
     sauvetageResults.innerHTML = `
       <div class="result-row" style="border-top:none;">
         <div class="result-info">
-          <span class="dot pin"></span>
-          <div><div class="result-side">Pinnacle — mise de protection</div><div class="result-market">à placer maintenant</div></div>
+          <span class="dot ${cibleEstPinnacle ? 'pin' : 'soft'}"></span>
+          <div><div class="result-side">${nomCible} — mise de protection</div><div class="result-market">à placer maintenant</div></div>
         </div>
-        <span class="result-amount">${miseP_Eur.toFixed(2)} €</span>
+        <span class="result-amount">${montantAffiche}</span>
       </div>
       <div class="profit-banner" style="${gagne ? '' : 'border-color:rgba(255,92,92,0.3);background:rgba(255,92,92,0.06);'}">
         <div class="label" style="${gagne ? '' : 'color:var(--red);'}">${gagne ? '🔒 Résultat garanti, peu importe qui gagne' : '⚠️ Perte minimisée, peu importe qui gagne'}</div>
         <div class="amount" style="${gagne ? '' : 'color:var(--red);'}">${resultatGaranti >= 0 ? '+' : ''}${resultatGaranti.toLocaleString('fr-FR')} CFA</div>
         <div class="note">${gagne
-          ? 'Que Pinnacle ou ' + sides[0].name + ' gagne, tu obtiens exactement ce montant.'
+          ? 'Que ' + nomCible + ' ou ' + sides[0].name + ' gagne, tu obtiens exactement ce montant.'
           : "La cote a trop chuté pour un vrai sauvetage — ceci est la plus petite perte possible, identique quelle que soit l'issue."}</div>
       </div>`;
   });
