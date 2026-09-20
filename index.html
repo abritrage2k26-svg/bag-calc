@@ -707,12 +707,22 @@ input.addEventListener('input', () => {
   const profitPct = (profitGaranti / totalEngage) * 100;
   dernierProfitGaranti = profitGaranti;
 
+  // Distingue un vrai profit garanti (arb < 1) d'une PERTE garantie (arb ≥ 1, aucun edge
+  // réel entre ces cotes) — les deux se calculent avec la même formule (le minimum des
+  // profits sur chaque issue), donc rien ne les distinguait avant ce correctif : une perte
+  // s'affichait avec le même libellé rassurant "🔒 Profit garanti" et le même montant en
+  // "+" ou "-" comme un simple détail. En pratique un lien généré par le terminal ne pointe
+  // jamais vers ce cas (il bloque déjà le lancement sans edge réel), mais un lien modifié à
+  // la main ou un ancien lien avec des cotes périmées pouvait afficher une perte comme si
+  // c'était une promesse de gain — blindé par précaution.
+  const aucunEdgeReel = profitGaranti < 0;
   const banner = document.createElement('div');
   banner.className = 'profit-banner';
+  if (aucunEdgeReel) banner.style.cssText = 'border-color:rgba(255,92,92,0.35);background:rgba(255,92,92,0.07);';
   banner.innerHTML = `
-    <div class="label">🔒 Profit garanti, quelle que soit l'issue</div>
-    <div class="amount">${profitGaranti >= 0 ? '+' : ''}${profitGaranti.toLocaleString('fr-FR')} CFA</div>
-    <div class="note">${profitPct.toFixed(2)}% de ta mise totale</div>`;
+    <div class="label" style="${aucunEdgeReel ? 'color:var(--red);' : ''}">${aucunEdgeReel ? '⚠️ Aucun edge réel — perte garantie' : '🔒 Profit garanti, quelle que soit l\'issue'}</div>
+    <div class="amount" style="${aucunEdgeReel ? 'color:var(--red);' : ''}">${profitGaranti >= 0 ? '+' : ''}${profitGaranti.toLocaleString('fr-FR')} CFA</div>
+    <div class="note">${aucunEdgeReel ? "Ces cotes ne forment plus un vrai surebet — vérifie-les en direct avant de miser, elles ont probablement bougé depuis l'alerte." : profitPct.toFixed(2) + '% de ta mise totale'}</div>`;
   results.appendChild(banner);
 
   sides.forEach((s, i) => {
