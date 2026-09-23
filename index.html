@@ -310,13 +310,17 @@ for (let i = 1; i <= 3; i++) {
   const name = p.get('n' + i);
   const cote = parseFloat(p.get('c' + i));
   if (!name || !cote) continue;
-  // Le point du côté 2 n'est rouge ("pin") QUE si ce côté est réellement Pinnacle — sinon
-  // bleu ("soft"), comme le côté 1. Bug réel constaté sans cette distinction : un arb ou un
-  // sauvetage 100% entre softs affichait quand même un point rouge (couleur Pinnacle) sur
-  // le 2e côté, alors qu'il s'agissait d'un autre soft (1xBet/1Win). Le 3e côté (mode 3
-  // issues) garde sa couleur dédiée ("s3") quel que soit le bookmaker, pour rester
-  // visuellement distinct des deux premiers.
-  sides.push({ name, cote, desc: p.get('d' + i) || '', dotClass: i === 1 ? 'soft' : i === 2 ? (name === 'Pinnacle' ? 'pin' : 'soft') : 's3', estPinnacle: name === 'Pinnacle' });
+  // Le point d'un côté n'est rouge ("pin") QUE si ce côté est réellement Pinnacle — sinon
+  // bleu ("soft"). Bug réel constaté sans cette distinction : un arb ou un sauvetage 100%
+  // entre softs affichait quand même un point rouge (couleur Pinnacle) sur le 2e côté, alors
+  // qu'il s'agissait d'un autre soft (1xBet/1Win). Généralisé aussi au 1er côté lors de cet
+  // audit élargi : le mode 3 issues du terminal (bkSel[1/2/3]) est ENTIÈREMENT flexible —
+  // Pinnacle peut y être assigné à N'IMPORTE lequel des 3 côtés, pas seulement le 2ème — donc
+  // fixer le 1er côté à 'soft' sans vérifier son nom pouvait afficher un point bleu pour une
+  // jambe réellement Pinnacle. Le 3e côté (mode 3 issues) garde volontairement sa couleur
+  // dédiée ("s3") quel que soit le bookmaker, pour rester visuellement distinct des deux
+  // premiers — seul ce cas-là reste indépendant du nom.
+  sides.push({ name, cote, desc: p.get('d' + i) || '', dotClass: i === 3 ? 's3' : (name === 'Pinnacle' ? 'pin' : 'soft'), estPinnacle: name === 'Pinnacle' });
 }
 
 // Pas d'arrondi identique au terminal BAG (voir PAS_ARRONDI_CFA côté app) — une mise
