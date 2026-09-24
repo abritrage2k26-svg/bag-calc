@@ -456,6 +456,13 @@ if (estSauvetage && sides.length >= 2) {
     // rien dire hors Pinnacle — mathématiquement identique pour Pinnacle (miseP_Eur * tx
     // === miseP_Cfa exactement), mais correct aussi pour l'autre soft.
     const resultatGaranti = Math.floor(miseP_Cfa * cSauvetage - totalEngage + 1e-6);
+    // Bug réel trouvé lors d'un audit de code : contrairement à la branche pari classique
+    // (voir plus bas, `dernierProfitGaranti = profitGaranti;`), cette branche sauvetage ne
+    // renseignait JAMAIS `dernierProfitGaranti` — la ligne de comparaison "Profit garanti
+    // annoncé avant le match" dans "Calcule ton vrai gain" (affichée uniquement quand cette
+    // variable n'est pas null) ne s'affichait donc jamais pour une opération de sauvetage,
+    // alors que le bouton de clôture reste disponible et fonctionnel dans ce mode.
+    dernierProfitGaranti = resultatGaranti;
 
     sauvetageResults.style.display = '';
     const gagne = resultatGaranti >= 0;
@@ -526,7 +533,16 @@ const CLE_CAPITAL = 'bagcalc_dernier_capital';
 let dernierProfitGaranti = null;
 const lastHint = document.getElementById('lastHint');
 try {
-  const dernier = localStorage.getItem(CLE_CAPITAL);
+  // JAMAIS en mode sauvetage : `CLE_CAPITAL` mémorise le capital du dernier PARI CLASSIQUE
+  // ouvert sur cet appareil (potentiellement un lien complètement différent, plus tôt dans
+  // la journée) — restaurer cette valeur dans `#capital` ici n'a aucun sens pour un
+  // sauvetage (le champ pertinent est `#sauvetageMise`, jamais pré-rempli automatiquement).
+  // Bug réel trouvé lors d'un audit de code : cette restauration pré-remplissait quand même
+  // `#capital` (bien que masqué dans `#capitalZone`), et le déclenchement automatique de
+  // l'event 'input' un peu plus bas (voir la fin du fichier) faisait alors apparaître le
+  // bandeau de répartition CLASSIQUE (montants, profit garanti) par-dessus l'interface de
+  // sauvetage — un contenu numériquement hors-sujet superposé à la vraie zone de saisie.
+  const dernier = !estSauvetage ? localStorage.getItem(CLE_CAPITAL) : null;
   if (dernier) {
     input.value = dernier;
     // Affiché explicitement (pas juste pré-rempli en silence) — la calculatrice se
@@ -636,6 +652,10 @@ function calculerCloture() {
 }
 
 input.addEventListener('input', () => {
+  // Garde défensive supplémentaire (voir le commentaire sur la restauration localStorage
+  // plus haut) : ce handler ne doit JAMAIS rien afficher en mode sauvetage, même si `#capital`
+  // reçoit une valeur par un autre chemin que celui déjà corrigé ci-dessus.
+  if (estSauvetage) return;
   const capital = parseFloat(input.value);
   if (!capital || capital <= 0 || sides.length < 2) {
     results.style.display = 'none';
