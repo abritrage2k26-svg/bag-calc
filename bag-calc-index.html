@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>BAG · Calcule ta mise</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0f0e;
+    --surface:#12181a;
+    --surface-2:#161e20;
+    --line:#233029;
+    --gold:#e8a23d;
+    --gold-dim:#8a6a30;
+    --blue:#4c8dff;
+    --red:#ff5c5c;
+    --text:#f2f0ea;
+    --muted:#8a9490;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:32px 16px 64px;
+    line-height:1.45;
+  }
+  .wrap{width:100%;max-width:420px;}
+
+  .brand{
+    display:flex;align-items:baseline;gap:8px;
+    margin-bottom:18px;
+  }
+  .brand .mark{
+    font-family:'Space Grotesk',sans-serif;font-weight:700;
+    font-size:15px;letter-spacing:0.02em;color:var(--gold);
+  }
+  .brand .sub{font-size:12px;color:var(--muted);}
+
+  .ticket{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:18px;
+    overflow:hidden;
+  }
+
+  .ticket-head{padding:20px 22px 18px;}
+  .match-sport{font-size:11px;color:var(--gold);font-weight:600;margin-bottom:4px;}
+  .match-name{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:17px;line-height:1.3;}
+  .match-league{font-size:12px;color:var(--muted);margin-top:2px;}
+  .market-flag{
+    margin-top:10px;font-size:11.5px;color:#f2c96a;
+    background:rgba(232,162,61,0.08);
+    border:1px solid rgba(232,162,61,0.25);
+    border-radius:9px;padding:7px 10px;line-height:1.4;
+  }
+
+  .rows{padding:2px 22px 18px;}
+  .row{
+    display:flex;justify-content:space-between;align-items:baseline;
+    padding:10px 0;border-top:1px solid var(--line);
+  }
+  .row:first-child{border-top:none;}
+  .side{display:flex;align-items:baseline;gap:8px;}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;position:relative;top:-1px;}
+  .dot.soft{background:var(--blue);}
+  .dot.pin{background:var(--red);}
+  .dot.s3{background:var(--gold);}
+  .side-name{font-weight:600;font-size:14.5px;}
+  .side-odds{color:var(--muted);font-size:13px;}
+  .side-pct{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;}
+  .side-pct.soft{color:var(--blue);}
+  .side-pct.pin{color:var(--red);}
+  .side-pct.s3{color:var(--gold);}
+
+  .perf{
+    height:0;border-top:1px dashed var(--line);
+    margin:0 22px;position:relative;
+  }
+  .perf::before,.perf::after{
+    content:'';position:absolute;top:-9px;width:18px;height:18px;
+    background:var(--bg);border-radius:50%;
+  }
+  .perf::before{left:-31px;}
+  .perf::after{right:-31px;}
+
+  .input-zone{padding:20px 22px 10px;}
+  .input-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+  .input-row{
+    display:flex;align-items:center;gap:10px;
+    background:var(--surface-2);border:1px solid var(--line);
+    border-radius:12px;padding:12px 14px;
+    transition:border-color .15s ease;
+  }
+  .input-row:focus-within{border-color:var(--gold-dim);}
+  .input-row .cur{color:var(--muted);font-size:14px;}
+  #capital{
+    flex:1;background:none;border:none;outline:none;color:var(--text);
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;
+    min-width:0;
+  }
+  #capital::placeholder{color:#4a5451;font-weight:500;}
+
+  .results{padding:16px 22px 22px;}
+  .result-row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:12px 0;
+  }
+  .result-row + .result-row{border-top:1px solid var(--line);}
+  .result-name{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;}
+  .result-amount-wrap{display:flex;align-items:center;gap:8px;}
+  .result-amount{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;}
+  .result-amount.soft{color:var(--blue);}
+  .result-amount.pin{color:var(--red);}
+  .result-amount.s3{color:var(--gold);}
+  .result-market{font-size:11.5px;color:var(--muted);margin-top:1px;}
+  .copy-btn{
+    width:30px;height:30px;flex:none;border-radius:9px;
+    background:var(--surface-2);border:1px solid var(--line);color:var(--muted);
+    font-size:13px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:all .15s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .copy-btn:active{transform:scale(0.92);}
+  .copy-btn.copied{background:rgba(232,162,61,0.15);border-color:var(--gold-dim);color:var(--gold);}
+
+  .edge-line{
+    display:flex;justify-content:space-between;font-size:12px;color:var(--muted);
+    padding-top:10px;margin-top:4px;border-top:1px solid var(--line);
+  }
+  .edge-line b{color:var(--text);}
+
+  .profit-banner{
+    background:rgba(232,162,61,0.08);border:1px solid rgba(232,162,61,0.3);
+    border-radius:12px;padding:14px 16px;margin-bottom:14px;text-align:center;
+  }
+  .profit-banner .label{font-size:10.5px;color:var(--gold);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;}
+  .profit-banner .amount{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:24px;color:var(--gold);margin-top:3px;}
+  .profit-banner .note{font-size:11px;color:var(--muted);margin-top:3px;}
+
+  .min-warning{
+    background:rgba(255,92,92,0.08);border:1px solid rgba(255,92,92,0.3);
+    border-radius:12px;padding:13px 15px;margin-bottom:14px;font-size:12.5px;line-height:1.55;
+  }
+  .min-warning .title{color:var(--red);font-weight:700;font-size:12.5px;margin-bottom:4px;}
+  .min-warning b{color:var(--text);}
+
+  .empty-hint{font-size:12.5px;color:var(--muted);padding:6px 0 2px;}
+  .last-hint{font-size:11.5px;color:var(--gold-dim);padding:0 0 8px;}
+  .min-capital-hint{font-size:11px;color:var(--muted);padding:0 0 10px;}
+  .min-capital-hint b{color:var(--text);}
+
+  .min-warning{
+    background:rgba(255,92,92,0.08);border:1px solid rgba(255,92,92,0.3);
+    border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:12.5px;
+    line-height:1.55;color:var(--text);
+  }
+  .min-warning .label{font-size:10.5px;color:var(--red);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:4px;}
+  .min-warning b{color:var(--red);}
+
+  .explain-toggle{
+    display:block;text-align:center;font-size:12px;color:var(--muted);
+    text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;
+    cursor:pointer;margin-top:14px;background:none;border:none;padding:4px;width:100%;
+    font-family:inherit;-webkit-tap-highlight-color:transparent;
+  }
+  .explain-box{
+    display:none;font-size:12.5px;color:var(--muted);line-height:1.6;
+    background:var(--surface-2);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;margin-top:10px;
+  }
+  .explain-box b{color:var(--text);}
+
+  .cloture-toggle{
+    display:block;text-align:center;font-size:12.5px;color:var(--gold);
+    font-weight:600;cursor:pointer;margin-top:18px;padding-top:16px;
+    border-top:1px solid var(--line);background:none;border-left:none;border-right:none;
+    border-bottom:none;width:100%;font-family:inherit;-webkit-tap-highlight-color:transparent;
+  }
+  .cloture-box{
+    display:none;margin-top:12px;
+  }
+  .cloture-note{
+    font-size:11.5px;color:var(--muted);line-height:1.5;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;
+  }
+  .cloture-note b{color:var(--text);}
+  .cloture-bk{margin-bottom:12px;}
+  .cloture-bk-name{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--text);margin-bottom:6px;}
+  .cloture-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .cloture-field label{display:block;font-size:10.5px;color:var(--muted);margin-bottom:6px;}
+  .cloture-field input{
+    width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;
+    padding:11px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-weight:600;
+    font-size:15px;text-align:center;outline:none;
+  }
+  .cloture-field input:focus{border-color:var(--gold-dim);}
+  .cloture-resultat{
+    display:none;margin-top:12px;text-align:center;border-radius:12px;padding:14px;
+  }
+  .cloture-resultat.gagne{background:rgba(232,162,61,0.08);border:1px solid rgba(232,162,61,0.3);}
+  .cloture-resultat.perdu{background:rgba(255,92,92,0.08);border:1px solid rgba(255,92,92,0.3);}
+  .cloture-resultat .montant{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;}
+  .cloture-resultat.gagne .montant{color:var(--gold);}
+  .cloture-resultat.perdu .montant{color:var(--red);}
+  .cloture-resultat .pct{font-size:12px;color:var(--muted);margin-top:2px;}
+  .cloture-resultat .compare{font-size:11px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--line);}
+
+  .foot{
+    text-align:center;font-size:11px;color:#4a5451;margin-top:20px;line-height:1.6;
+  }
+  .foot a{color:var(--gold-dim);text-decoration:none;}
+  .foot .signature{margin-top:10px;color:#3a423f;font-size:10.5px;}
+
+  @media (max-width:380px){
+    .match-name{font-size:15.5px;}
+    .side-name{font-size:13.5px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <span class="mark">BAG</span>
+    <span class="sub">Calcule ta mise, en direct</span>
+  </div>
+
+  <div class="ticket">
+    <div class="ticket-head">
+      <div class="match-sport" id="outSport">Sport</div>
+      <div class="match-name" id="outMatch">Équipe A - Équipe B</div>
+      <div class="match-league" id="outLeague"></div>
+      <div class="market-flag" id="outMarket" style="display:none;"></div>
+    </div>
+
+    <div class="rows" id="rows"></div>
+
+    <div class="perf"></div>
+
+    <div class="input-zone" id="capitalZone">
+      <div class="input-label">Ton capital pour ce pari</div>
+      <div class="input-row">
+        <span class="cur">CFA</span>
+        <input type="number" id="capital" inputmode="numeric" placeholder="10000" autofocus>
+      </div>
+      <div class="last-hint" id="lastHint" style="display:none;"></div>
+      <div class="empty-hint" id="hint">Tape un montant pour voir la répartition exacte.</div>
+      <div class="last-hint" id="capMinHint" style="display:none;"></div>
+    </div>
+
+    <div class="input-zone" id="sauvetageZone" style="display:none;">
+      <div class="input-label" id="sauvetageLabel">Combien avais-tu déjà misé sur ce bookmaker ?</div>
+      <div class="input-row">
+        <span class="cur">CFA</span>
+        <input type="number" id="sauvetageMise" inputmode="numeric" placeholder="3000" autofocus>
+      </div>
+      <div class="empty-hint" id="sauvetageHint">Tape ce que tu avais déjà misé pour voir la mise de protection à placer.</div>
+    </div>
+
+    <div class="results" id="results" style="display:none;"></div>
+    <div class="results" id="sauvetageResults" style="display:none;"></div>
+
+    <button type="button" class="explain-toggle" id="explainToggle">Pourquoi miser sur les deux côtés ? →</button>
+    <div class="explain-box" id="explainBox">
+      C'est le principe de l'arbitrage : au lieu de parier sur un seul résultat, on couvre <b>toutes les issues possibles</b> chez des bookmakers différents, avec des cotes qui compensent leurs écarts. Résultat : <b>peu importe qui gagne</b>, la somme totale récupérée dépasse toujours la mise totale engagée — le profit ci-dessus est garanti avant même le coup d'envoi, pas un pronostic.
+    </div>
+
+    <button type="button" class="cloture-toggle" id="clotureToggle">✅ Le match est terminé ? Calcule ton vrai gain →</button>
+    <div class="cloture-box" id="clotureBox">
+      <div class="cloture-note">⚠️ Un champ par compte utilisé pour ce signal — un seul compte "perd" sa mise, c'est normal en arbitrage. Le total se calcule tout seul, pas besoin d'additionner toi-même.</div>
+      <div id="clotureRows"></div>
+      <div class="cloture-resultat" id="clotureResultat"></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    Répartition indicative — vérifie toujours les cotes en direct<br>
+    avant de placer ton pari. <a href="#" id="privLink">Rien n'est envoyé à personne</a>, tout reste sur ton téléphone.
+    <div class="signature">Calcul vérifié à la même précision que celle utilisée en interne — BAG</div>
+  </div>
+
+</div>
+
+<script>
+// ── Lecture des paramètres du lien (envoyés par le signal Telegram) ──
+// Format générique : side1..side3 (name/cote/desc), pour couvrir 2 ET 3 issues avec le
+// même code plutôt que deux chemins séparés. Un signal 2 issues n'envoie que side1+side2.
+const p = new URLSearchParams(window.location.search);
+const meta = {
+  sport:  p.get('sport')  || '',
+  match:  p.get('match')  || '',
+  league: p.get('league') || '',
+  market: p.get('market') || '',
+  edge:   p.get('edge')   || '',
+};
+// Taux EUR/CFA — Pinnacle fonctionne en euros, contrairement aux softs (1xBet/1Win) qui
+// restent en CFA. Repli à 656 (taux par défaut du terminal BAG) si le lien ne le transmet
+// pas — un ancien lien généré avant cet ajout continue de fonctionner, juste sans cette
+// conversion précise.
+const tx = parseFloat(p.get('tx')) || 656;
+const sides = [];
+for (let i = 1; i <= 3; i++) {
+  const name = p.get('n' + i);
+  const cote = parseFloat(p.get('c' + i));
+  if (!name || !cote) continue;
+  // Le point d'un côté n'est rouge ("pin") QUE si ce côté est réellement Pinnacle — sinon
+  // bleu ("soft"). Bug réel constaté sans cette distinction : un arb ou un sauvetage 100%
+  // entre softs affichait quand même un point rouge (couleur Pinnacle) sur le 2e côté, alors
+  // qu'il s'agissait d'un autre soft (1xBet/1Win). Généralisé aussi au 1er côté lors de cet
+  // audit élargi : le mode 3 issues du terminal (bkSel[1/2/3]) est ENTIÈREMENT flexible —
+  // Pinnacle peut y être assigné à N'IMPORTE lequel des 3 côtés, pas seulement le 2ème — donc
+  // fixer le 1er côté à 'soft' sans vérifier son nom pouvait afficher un point bleu pour une
+  // jambe réellement Pinnacle. Le 3e côté (mode 3 issues) garde volontairement sa couleur
+  // dédiée ("s3") quel que soit le bookmaker, pour rester visuellement distinct des deux
+  // premiers — seul ce cas-là reste indépendant du nom.
+  sides.push({ name, cote, desc: p.get('d' + i) || '', dotClass: i === 3 ? 's3' : (name === 'Pinnacle' ? 'pin' : 'soft'), estPinnacle: name === 'Pinnacle' });
+}
+
+// Pas d'arrondi identique au terminal BAG (voir PAS_ARRONDI_CFA côté app) — une mise
+// calculée ici doit toujours être plaçable telle quelle chez le bookmaker. Chaque côté
+// SAUF le dernier est arrondi normalement ; le dernier absorbe l'écart pour que la somme
+// retombe toujours exactement sur le capital tapé (jamais 10 050 au lieu de 10 000).
+const PAS_ARRONDI_CFA = 50;
+
+// Mises minimums réelles acceptées par chaque bookmaker (mêmes valeurs vérifiées que côté
+// terminal BAG-PAS) — sans ce contrôle, la calculatrice pouvait afficher un montant que
+// l'abonné ne pourrait en réalité pas placer chez le bookmaker (rejeté comme "mise trop
+// faible"), sans qu'il comprenne pourquoi.
+const MINIMUMS = { '1xBet': { valeur: 500, unite: 'CFA' }, '1Win': { valeur: 500, unite: 'CFA' }, 'Pinnacle': { valeur: 5, unite: '€' } };
+function minPourSide(s) {
+  return MINIMUMS[s.name] || { valeur: 500, unite: 'CFA' }; // repli prudent si un nom inattendu apparaît
+}
+// Convertit le minimum natif d'un côté (CFA ou EUR) en équivalent CFA, pour pouvoir le
+// comparer directement aux montants calculés (toujours en CFA en interne, voir plus bas).
+function minEnCfa(s) {
+  const m = minPourSide(s);
+  return m.unite === '€' ? m.valeur * tx : m.valeur;
+}
+
+// ── Remplissage du récap ──
+function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function setShow(id, show) { const el = document.getElementById(id); if (el) el.style.display = show ? '' : 'none'; }
+
+setText('outSport', meta.sport || '');
+setShow('outSport', !!meta.sport);
+setText('outMatch', meta.match || 'Match non précisé');
+setText('outLeague', meta.league || '');
+setShow('outLeague', !!meta.league);
+if (meta.market) {
+  setShow('outMarket', true);
+  setText('outMarket', '🎯 Marché spécial : ' + meta.market.toUpperCase() + ' — pas le résultat classique du match.');
+}
+
+let pcts = [];
+if (sides.length >= 2) {
+  const arb = sides.reduce((s, x) => s + (1 / x.cote), 0);
+  pcts = sides.map(x => ((1 / x.cote) / arb) * 100);
+}
+
+// ── Mode sauvetage : détecté par le paramètre du lien. Mécanique complètement différente
+// d'un pari classique — l'abonné a DÉJÀ misé sur le soft avant que la cote Pinnacle bouge,
+// donc pas de "répartis ton capital" ici, juste "protège ce que tu as déjà engagé".
+const estSauvetage = p.get('mode') === 'sauvetage';
+
+// ── Capital minimum pour que TOUS les côtés dépassent leur minimum bookmaker — calculé
+// une fois, affiché avant même que l'abonné tape quoi que ce soit (guidage proactif),
+// et réutilisé pour détecter un capital insuffisant pendant la saisie. Ne s'applique pas
+// au sauvetage : l'abonné n'a rien à répartir, juste un montant déjà engagé à protéger.
+let capitalMinSuggere = null;
+if (sides.length >= 2 && !estSauvetage) {
+  const minsParSide = sides.map((s, i) => minEnCfa(s) / (pcts[i] / 100));
+  capitalMinSuggere = Math.ceil(Math.max(...minsParSide) / PAS_ARRONDI_CFA) * PAS_ARRONDI_CFA;
+  const capMinHint = document.getElementById('capMinHint');
+  if (capMinHint) {
+    capMinHint.textContent = `💡 Capital conseillé pour ce signal précis : au moins ${capitalMinSuggere.toLocaleString('fr-FR')} CFA`;
+    capMinHint.style.display = '';
+  }
+}
+
+const rowsEl = document.getElementById('rows');
+sides.forEach((s, i) => {
+  const row = document.createElement('div');
+  row.className = 'row';
+  // En sauvetage, le % de répartition n'a aucun sens (rien à répartir) — remplacé par une
+  // étiquette qui précise le rôle de chaque cote : celle déjà misée vs la nouvelle.
+  const etiquetteDroite = estSauvetage
+    ? `<span class="side-pct ${s.dotClass}" style="font-size:11px;">${i === 0 ? 'déjà misé' : 'sauvetage'}</span>`
+    : `<span class="side-pct ${s.dotClass}">${pcts[i] ? pcts[i].toFixed(1) : '--'}%</span>`;
+  row.innerHTML = `
+    <div class="side">
+      <span class="dot ${s.dotClass}"></span>
+      <span class="side-name">${s.name}${s.estPinnacle ? ' <span style="color:#8a9490;font-weight:500;font-size:11px;">(dépôt en €)</span>' : ''}</span>
+      <span class="side-odds">@ ${s.cote}</span>
+    </div>
+    ${etiquetteDroite}`;
+  rowsEl.appendChild(row);
+});
+
+// ── Calcul en direct pendant la saisie (pari classique) ──
+const input = document.getElementById('capital');
+const results = document.getElementById('results');
+const hint = document.getElementById('hint');
+
+// ── Mode sauvetage : bascule d'affichage (zone capital normale masquée, zone sauvetage
+// affichée) + explication adaptée + calcul dédié. Fait tout de suite, avant le reste de
+// l'initialisation, pour que rien de la logique "pari classique" ne s'affiche par erreur.
+if (estSauvetage && sides.length >= 2) {
+  setShow('capitalZone', false);
+  document.getElementById('sauvetageZone').style.display = '';
+  document.getElementById('sauvetageLabel').textContent = `Combien avais-tu déjà misé sur ${sides[0].name} ?`;
+
+  const explainToggleEl = document.getElementById('explainToggle');
+  const explainBoxEl = document.getElementById('explainBox');
+  // Nom de la cible généralisé (sides[1].name) — ce n'est plus toujours "Pinnacle" : un
+  // sauvetage peut désormais viser l'autre soft (1xBet/1Win) directement, sans passer par
+  // Pinnacle du tout. Texte construit dynamiquement à partir du VRAI nom transmis par le
+  // lien (paramètre n2), jamais du mot "Pinnacle" en dur.
+  const nomCible = sides[1].name;
+  explainBoxEl.innerHTML = `La cote a bougé chez ${nomCible} après que tu aies déjà misé sur ${sides[0].name}. Cette mise de protection est calculée pour que <b>le résultat soit exactement le même</b>, peu importe qui gagne — ${sides[0].name} ou ${nomCible}. Si la cote n'a pas trop chuté, ce montant est un <b>vrai profit garanti</b>. Si elle a beaucoup chuté, aucune formule ne peut garantir un gain des deux côtés à la fois — ce montant est alors <b>la plus petite perte possible</b>, toujours identique quelle que soit l'issue plutôt que de risquer une grosse perte d'un côté.`;
+
+  const sauvetageInput = document.getElementById('sauvetageMise');
+  const sauvetageResults = document.getElementById('sauvetageResults');
+  const sauvetageHint = document.getElementById('sauvetageHint');
+  const cOrigine = sides[0].cote;   // cote d'origine du soft, déjà misée
+  const cSauvetage = sides[1].cote; // nouvelle cote de la cible (Pinnacle ou l'autre soft), de sauvetage
+  const cibleEstPinnacle = sides[1].estPinnacle; // devise d'affichage : € pour Pinnacle, CFA sinon
+
+  sauvetageInput.addEventListener('input', () => {
+    const miseDejaEngagee = parseFloat(sauvetageInput.value);
+    if (!miseDejaEngagee || miseDejaEngagee <= 0) {
+      sauvetageResults.style.display = 'none';
+      sauvetageHint.style.display = '';
+      return;
+    }
+    sauvetageHint.style.display = 'none';
+    // Égalise EXACTEMENT les deux issues (la cible gagne / soft gagne à sa cote d'origine)
+    // — même formule que le terminal BAG (calculerSauvetage) : mise cible = mise déjà
+    // engagée × cote d'origine / nouvelle cote. Formule valable quelle que soit la cible
+    // (Pinnacle ou l'autre soft) — c'est un rapport de cotes, indépendant de la devise
+    // native du bookmaker. Résultat : soit un vrai profit garanti des deux côtés (si
+    // l'arbitrage tient encore malgré la chute de cote), soit la perte la plus faible
+    // possible répartie également — jamais un résultat où gagner peut donner 0 CFA et
+    // l'autre issue une grosse perte.
+    const miseP_Cfa = miseDejaEngagee * cOrigine / cSauvetage;
+    const miseP_Eur = miseP_Cfa / tx;
+    const totalEngage = miseDejaEngagee + miseP_Cfa;
+    // Généralisé sur miseP_Cfa directement (équivalent CFA, valable quel que soit le
+    // bookmaker) plutôt que sur le détour "miseP_Eur * cSauvetage * tx", qui ne voulait
+    // rien dire hors Pinnacle — mathématiquement identique pour Pinnacle (miseP_Eur * tx
+    // === miseP_Cfa exactement), mais correct aussi pour l'autre soft.
+    const resultatGaranti = Math.floor(miseP_Cfa * cSauvetage - totalEngage + 1e-6);
+    // Bug réel trouvé lors d'un audit de code : contrairement à la branche pari classique
+    // (voir plus bas, `dernierProfitGaranti = profitGaranti;`), cette branche sauvetage ne
+    // renseignait JAMAIS `dernierProfitGaranti` — la ligne de comparaison "Profit garanti
+    // annoncé avant le match" dans "Calcule ton vrai gain" (affichée uniquement quand cette
+    // variable n'est pas null) ne s'affichait donc jamais pour une opération de sauvetage,
+    // alors que le bouton de clôture reste disponible et fonctionnel dans ce mode.
+    dernierProfitGaranti = resultatGaranti;
+
+    sauvetageResults.style.display = '';
+    const gagne = resultatGaranti >= 0;
+    // Affichage en euros UNIQUEMENT si la cible est Pinnacle (sa vraie devise de dépôt) —
+    // en CFA sinon, comme n'importe quel soft. Bug réel constaté sans cette distinction :
+    // un sauvetage vers l'autre soft affichait quand même "X.XX €", un montant dans la
+    // mauvaise devise ET le mauvais bookmaker ("Pinnacle" écrit en dur) à la fois.
+    const montantAffiche = cibleEstPinnacle ? `${miseP_Eur.toFixed(2)} €` : `${Math.round(miseP_Cfa).toLocaleString('fr-FR')} CFA`;
+    sauvetageResults.innerHTML = `
+      <div class="result-row" style="border-top:none;">
+        <div class="result-info">
+          <span class="dot ${cibleEstPinnacle ? 'pin' : 'soft'}"></span>
+          <div><div class="result-side">${nomCible} — mise de protection</div><div class="result-market">à placer maintenant</div></div>
+        </div>
+        <span class="result-amount">${montantAffiche}</span>
+      </div>
+      <div class="profit-banner" style="${gagne ? '' : 'border-color:rgba(255,92,92,0.3);background:rgba(255,92,92,0.06);'}">
+        <div class="label" style="${gagne ? '' : 'color:var(--red);'}">${gagne ? '🔒 Résultat garanti, peu importe qui gagne' : '⚠️ Perte minimisée, peu importe qui gagne'}</div>
+        <div class="amount" style="${gagne ? '' : 'color:var(--red);'}">${resultatGaranti >= 0 ? '+' : ''}${resultatGaranti.toLocaleString('fr-FR')} CFA</div>
+        <div class="note">${gagne
+          ? 'Que ' + nomCible + ' ou ' + sides[0].name + ' gagne, tu obtiens exactement ce montant.'
+          : "La cote a trop chuté pour un vrai sauvetage — ceci est la plus petite perte possible, identique quelle que soit l'issue."}</div>
+      </div>`;
+  });
+}
+
+// ── Copier un montant en un clic (avec repli pour les navigateurs intégrés type
+// Telegram in-app, où l'API Clipboard moderne peut être indisponible ou restreinte
+// selon iOS/Android). Copie le nombre brut (point décimal, pas de séparateur de
+// milliers) pour un collage direct dans le champ de mise du bookmaker.
+function copierMontant(valeurBrute, boutonEl) {
+  const succes = () => {
+    const original = boutonEl.textContent;
+    boutonEl.textContent = '✓';
+    boutonEl.classList.add('copied');
+    setTimeout(() => { boutonEl.textContent = original; boutonEl.classList.remove('copied'); }, 1200);
+  };
+  const repli = () => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = valeurBrute;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      succes();
+    } catch (e) { /* rien à faire de plus — l'abonné recopiera à la main */ }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+    navigator.clipboard.writeText(valeurBrute).then(succes).catch(repli);
+  } else {
+    repli();
+  }
+}
+
+// ── Mémorise le dernier capital tapé (localStorage, propre à cet appareil — rien
+// n'est envoyé nulle part) pour ne pas avoir à le retaper à chaque nouveau signal.
+// Enveloppé en try/catch : certains navigateurs (navigation privée, contexte in-app
+// restreint) bloquent localStorage — l'app doit continuer à fonctionner sans, juste
+// sans cette commodité.
+const CLE_CAPITAL = 'bagcalc_dernier_capital';
+// Mémorise le dernier profit garanti calculé (voir plus bas), pour la comparaison
+// affichée dans le volet "Calcule ton vrai gain" une fois le match terminé.
+let dernierProfitGaranti = null;
+const lastHint = document.getElementById('lastHint');
+try {
+  // JAMAIS en mode sauvetage : `CLE_CAPITAL` mémorise le capital du dernier PARI CLASSIQUE
+  // ouvert sur cet appareil (potentiellement un lien complètement différent, plus tôt dans
+  // la journée) — restaurer cette valeur dans `#capital` ici n'a aucun sens pour un
+  // sauvetage (le champ pertinent est `#sauvetageMise`, jamais pré-rempli automatiquement).
+  // Bug réel trouvé lors d'un audit de code : cette restauration pré-remplissait quand même
+  // `#capital` (bien que masqué dans `#capitalZone`), et le déclenchement automatique de
+  // l'event 'input' un peu plus bas (voir la fin du fichier) faisait alors apparaître le
+  // bandeau de répartition CLASSIQUE (montants, profit garanti) par-dessus l'interface de
+  // sauvetage — un contenu numériquement hors-sujet superposé à la vraie zone de saisie.
+  const dernier = !estSauvetage ? localStorage.getItem(CLE_CAPITAL) : null;
+  if (dernier) {
+    input.value = dernier;
+    // Affiché explicitement (pas juste pré-rempli en silence) — la calculatrice se
+    // souvient de l'abonné entre deux signaux, autant que ça se voie.
+    lastHint.textContent = `Dernier montant utilisé : ${parseFloat(dernier).toLocaleString('fr-FR')} CFA`;
+    lastHint.style.display = '';
+  }
+} catch (e) {}
+
+function sauverCapital(valeur) {
+  try { localStorage.setItem(CLE_CAPITAL, valeur); } catch (e) {}
+}
+
+// ── Volet "Pourquoi..." — replié par défaut. Un seul gestionnaire de clic, dont le texte
+// s'adapte selon le mode (sauvetage ou pari classique) — jamais deux gestionnaires sur le
+// même bouton, qui se marcheraient dessus.
+const explainToggle = document.getElementById('explainToggle');
+const explainBox = document.getElementById('explainBox');
+const texteToggleFerme = estSauvetage ? "Pourquoi cette opération de sauvetage ? →" : 'Pourquoi miser sur les deux côtés ? →';
+explainToggle.addEventListener('click', () => {
+  const ouvert = explainBox.style.display === 'block';
+  explainBox.style.display = ouvert ? 'none' : 'block';
+  explainToggle.textContent = ouvert ? texteToggleFerme : 'Masquer l\'explication ↑';
+});
+
+// ── Volet "Calcule ton vrai gain" — repli par défaut, pour un abonné qui revient sur ce
+// MÊME lien une fois le match terminé, pour transformer "avant/après" en un profit net
+// lisible sans calcul mental. Complètement indépendant du profit garanti affiché plus haut
+// (qui, lui, est théorique et pré-match) — ceci est le résultat réel, déclaré à la main.
+const clotureToggle = document.getElementById('clotureToggle');
+const clotureBox = document.getElementById('clotureBox');
+const clotureResultat = document.getElementById('clotureResultat');
+
+clotureToggle.addEventListener('click', () => {
+  const ouvert = clotureBox.style.display === 'block';
+  clotureBox.style.display = ouvert ? 'none' : 'block';
+  clotureToggle.textContent = ouvert ? "✅ Le match est terminé ? Calcule ton vrai gain →" : "Masquer ↑";
+});
+
+// ── Génère UN champ avant/après PAR CÔTÉ réellement présent dans ce signal (2 ou 3
+// selon le mode) — plutôt que deux champs génériques qui obligeaient l'abonné à
+// additionner ses comptes lui-même dans sa tête avant de taper quoi que ce soit. Chaque
+// paire est étiquetée avec le vrai nom du bookmaker, cohérent avec la répartition
+// affichée plus haut sur la même page.
+const clotureRows = document.getElementById('clotureRows');
+function construireLignesCloture() {
+  clotureRows.innerHTML = sides.map((s, i) => `
+    <div class="cloture-bk">
+      <div class="cloture-bk-name"><span class="dot ${s.dotClass}"></span>${s.name}${s.estPinnacle ? ' <span style="color:#8a9490;font-weight:500;font-size:11px;">(en €)</span>' : ' <span style="color:#8a9490;font-weight:500;font-size:11px;">(en CFA)</span>'}</div>
+      <div class="cloture-row">
+        <div class="cloture-field">
+          <label>Avant</label>
+          <input type="number" step="0.01" class="cloture-avant" data-idx="${i}" inputmode="decimal" placeholder="0">
+        </div>
+        <div class="cloture-field">
+          <label>Maintenant</label>
+          <input type="number" step="0.01" class="cloture-apres" data-idx="${i}" inputmode="decimal" placeholder="0">
+        </div>
+      </div>
+    </div>`).join('');
+  clotureRows.querySelectorAll('.cloture-avant, .cloture-apres').forEach(el => el.addEventListener('input', calculerCloture));
+}
+construireLignesCloture();
+
+function calculerCloture() {
+  const champsAvant = Array.from(document.querySelectorAll('.cloture-avant'));
+  const champsApres = Array.from(document.querySelectorAll('.cloture-apres'));
+  // Exige que TOUS les champs soient remplis avant de calculer quoi que ce soit — un
+  // total partiel (ex. 2 comptes sur 3 renseignés) donnerait un chiffre faux sans que
+  // rien ne le signale comme incomplet.
+  const valeursAvant = champsAvant.map(el => parseFloat(el.value));
+  const valeursApres = champsApres.map(el => parseFloat(el.value));
+  if (valeursAvant.some(v => isNaN(v)) || valeursApres.some(v => isNaN(v))) {
+    clotureResultat.style.display = 'none';
+    return;
+  }
+  // Pinnacle est saisi en EUROS (c'est sa vraie devise de dépôt, voir le libellé "(en €)"
+  // sur son champ) — converti en équivalent CFA via le taux transmis par le signal AVANT
+  // toute addition, sinon le total mélangerait deux devises différentes sans le dire.
+  // data-idx permet de retrouver, pour chaque champ, le côté (et donc la devise) auquel
+  // il appartient, même si l'ordre des champs générés ne correspond pas à l'ordre des
+  // querySelectorAll par hasard.
+  const convertir = (valeur, idx) => sides[idx] && sides[idx].estPinnacle ? valeur * tx : valeur;
+  const totalAvant = champsAvant.reduce((som, el, i) => som + convertir(valeursAvant[i], parseInt(el.dataset.idx, 10)), 0);
+  const totalApres = champsApres.reduce((som, el, i) => som + convertir(valeursApres[i], parseInt(el.dataset.idx, 10)), 0);
+  if (totalAvant <= 0) {
+    clotureResultat.style.display = 'none';
+    return;
+  }
+  const profitReel = Math.round(totalApres - totalAvant);
+  const profitPctReel = (profitReel / totalAvant) * 100;
+  const gagne = profitReel >= 0;
+  clotureResultat.className = 'cloture-resultat ' + (gagne ? 'gagne' : 'perdu');
+  // Compare au profit garanti annoncé pré-match, quand il a été calculé sur cette même
+  // page (dernierProfitGaranti) — purement informatif, pour voir si le résultat réel colle
+  // à la promesse initiale, jamais une correction du montant que l'abonné a lui-même tapé.
+  let ligneCompare = '';
+  if (dernierProfitGaranti !== null) {
+    const ecart = profitReel - dernierProfitGaranti;
+    ligneCompare = `<div class="compare">Profit garanti annoncé avant le match : ${dernierProfitGaranti >= 0 ? '+' : ''}${dernierProfitGaranti.toLocaleString('fr-FR')} CFA (écart : ${ecart >= 0 ? '+' : ''}${Math.round(ecart).toLocaleString('fr-FR')} CFA)</div>`;
+  }
+  clotureResultat.innerHTML = `
+    <div class="montant">${gagne ? '+' : ''}${profitReel.toLocaleString('fr-FR')} CFA</div>
+    <div class="pct">${profitPctReel >= 0 ? '+' : ''}${profitPctReel.toFixed(2)}% de ta mise de départ</div>
+    ${ligneCompare}`;
+  clotureResultat.style.display = 'block';
+}
+
+input.addEventListener('input', () => {
+  // Garde défensive supplémentaire (voir le commentaire sur la restauration localStorage
+  // plus haut) : ce handler ne doit JAMAIS rien afficher en mode sauvetage, même si `#capital`
+  // reçoit une valeur par un autre chemin que celui déjà corrigé ci-dessus.
+  if (estSauvetage) return;
+  const capital = parseFloat(input.value);
+  if (!capital || capital <= 0 || sides.length < 2) {
+    results.style.display = 'none';
+    hint.style.display = '';
+    return;
+  }
+  sauverCapital(input.value);
+  lastHint.style.display = 'none';
+  hint.style.display = 'none';
+  results.style.display = '';
+  results.innerHTML = '';
+
+  // Chaque côté est arrondi INDÉPENDAMMENT à sa propre précision naturelle — 50 CFA pour
+  // les softs, au centime d'euro près pour Pinnacle — exactement comme le fait le
+  // terminal BAG-PAS en interne. AUCUN côté n'absorbe le reste pour forcer un total qui
+  // tombe pile sur le capital tapé : cette ancienne méthode (dernier côté = capital -
+  // somme des autres) désynchronisait légèrement le montant Pinnacle affiché ici de ce
+  // que le terminal calcule réellement (jusqu'à quelques centimes d'écart, bug réel
+  // constaté en comparant les deux formules côte à côte). Un total qui dévie de quelques
+  // CFA par rapport au capital tapé est normal et déjà accepté côté terminal — préférable
+  // à un total “trop parfait” qui cache une désynchronisation avec la vraie mise à placer.
+  const montants = sides.map((s, i) => {
+    if (s.estPinnacle) {
+      const eur = parseFloat((capital * pcts[i] / 100 / tx).toFixed(2));
+      return eur * tx;
+    }
+    return Math.round(capital * pcts[i] / 100 / PAS_ARRONDI_CFA) * PAS_ARRONDI_CFA;
+  });
+
+  // ── Vérifie que chaque montant calculé respecte le minimum réel du bookmaker
+  // correspondant — sinon le montant affiché a l'air normal mais serait en réalité
+  // refusé au moment de le placer. Calcule aussi le capital minimum nécessaire (le plus
+  // grand des minimums requis par chaque côté, ramené à un capital total via son
+  // pourcentage) pour que ce signal précis soit plaçable partout à la fois.
+  const violations = [];
+  let capitalMinConseille = 0;
+  sides.forEach((s, i) => {
+    const minCfa = minEnCfa(s);
+    const valeurNative = s.estPinnacle ? montants[i] / tx : montants[i];
+    const m = minPourSide(s);
+    const valeurMinNative = m.valeur;
+    if (valeurNative < valeurMinNative) violations.push({ s, m });
+    // Capital nécessaire pour que CE côté seul atteigne son minimum, à proportion
+    // constante — arrondi au 100 CFA supérieur avec une petite marge pour absorber
+    // l'arrondi réel des mises (jamais un chiffre tout juste à la limite).
+    const capNecessaire = Math.ceil((minCfa / (pcts[i] / 100)) * 1.05 / 100) * 100;
+    if (capNecessaire > capitalMinConseille) capitalMinConseille = capNecessaire;
+  });
+
+  if (violations.length) {
+    const warn = document.createElement('div');
+    warn.className = 'min-warning';
+    const listeNoms = violations.map(v => `<b>${v.s.name}</b> (min ${v.m.valeur} ${v.m.unite})`).join(', ');
+    warn.innerHTML = `⚠️ <span class="title">Montant trop faible pour ${violations.length > 1 ? 'ces bookmakers' : 'ce bookmaker'}</span><br>
+      ${listeNoms} — ce pari serait refusé tel quel.<br>
+      Tape au moins <b>${capitalMinConseille.toLocaleString('fr-FR')} CFA</b> pour que ce signal soit plaçable partout.`;
+    results.appendChild(warn);
+  }
+
+  // ── Profit garanti — le MINIMUM du profit sur chacune des issues possibles (pas une
+  // moyenne). Avec l'arrondi des mises, le profit réel diffère légèrement selon qui
+  // gagne ; le montant "garanti" est celui qu'on touche même dans le pire des cas,
+  // exactement la même logique que côté terminal (validerProfitMin côté app BAG-PAS).
+  // IMPORTANT : la référence est le TOTAL RÉELLEMENT ENGAGÉ (somme des montants après
+  // arrondi indépendant de chaque côté), pas le capital tapé — depuis que chaque côté
+  // s'arrondit indépendamment (plus de "dernier côté absorbe le reste"), la somme réelle
+  // dévie légèrement du capital tapé. Utiliser le capital comme référence ici gonflait
+  // artificiellement le profit affiché (bug réel constaté : +118 CFA affichés à l'abonné
+  // contre +97 CFA réellement calculés côté terminal pour la même opération).
+  const totalEngage = montants.reduce((a, b) => a + b, 0);
+  const profitsParIssue = sides.map((s, i) => montants[i] * s.cote - totalEngage);
+  const profitGaranti = Math.floor(Math.min(...profitsParIssue));
+  const profitPct = (profitGaranti / totalEngage) * 100;
+  dernierProfitGaranti = profitGaranti;
+
+  // Distingue un vrai profit garanti (arb < 1) d'une PERTE garantie (arb ≥ 1, aucun edge
+  // réel entre ces cotes) — les deux se calculent avec la même formule (le minimum des
+  // profits sur chaque issue), donc rien ne les distinguait avant ce correctif : une perte
+  // s'affichait avec le même libellé rassurant "🔒 Profit garanti" et le même montant en
+  // "+" ou "-" comme un simple détail. En pratique un lien généré par le terminal ne pointe
+  // jamais vers ce cas (il bloque déjà le lancement sans edge réel), mais un lien modifié à
+  // la main ou un ancien lien avec des cotes périmées pouvait afficher une perte comme si
+  // c'était une promesse de gain — blindé par précaution.
+  const aucunEdgeReel = profitGaranti < 0;
+  const banner = document.createElement('div');
+  banner.className = 'profit-banner';
+  if (aucunEdgeReel) banner.style.cssText = 'border-color:rgba(255,92,92,0.35);background:rgba(255,92,92,0.07);';
+  banner.innerHTML = `
+    <div class="label" style="${aucunEdgeReel ? 'color:var(--red);' : ''}">${aucunEdgeReel ? '⚠️ Aucun edge réel — perte garantie' : '🔒 Profit garanti, quelle que soit l\'issue'}</div>
+    <div class="amount" style="${aucunEdgeReel ? 'color:var(--red);' : ''}">${profitGaranti >= 0 ? '+' : ''}${profitGaranti.toLocaleString('fr-FR')} CFA</div>
+    <div class="note">${aucunEdgeReel ? "Ces cotes ne forment plus un vrai surebet — vérifie-les en direct avant de miser, elles ont probablement bougé depuis l'alerte." : profitPct.toFixed(2) + '% de ta mise totale'}</div>`;
+  results.appendChild(banner);
+
+  sides.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'result-row';
+    // Pinnacle se dépose en euros, pas en CFA — on convertit ce montant précis avec le
+    // taux transmis par le signal, arrondi au centime le plus proche (précision réelle
+    // d'un dépôt Pinnacle), plutôt que de l'afficher en CFA comme les softs.
+    const montantEur = montants[i] / tx;
+    const montantAffiche = s.estPinnacle
+      ? montantEur.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+      : montants[i].toLocaleString('fr-FR') + ' CFA';
+    // Valeur copiée : nombre brut avec point décimal, jamais l'affichage formaté (espaces/
+    // virgules) qui casserait la saisie dans un champ numérique côté bookmaker.
+    const valeurCopie = s.estPinnacle ? montantEur.toFixed(2) : String(montants[i]);
+    row.innerHTML = `
+      <div>
+        <div class="result-name"><span class="dot ${s.dotClass}"></span>${s.name}</div>
+        <div class="result-market">${s.desc ? 'Parier sur : ' + s.desc : ''}</div>
+      </div>
+      <div class="result-amount-wrap">
+        <span class="result-amount ${s.dotClass}">${montantAffiche}</span>
+        <button type="button" class="copy-btn" aria-label="Copier le montant">⧉</button>
+      </div>`;
+    row.querySelector('.copy-btn').addEventListener('click', (e) => copierMontant(valeurCopie, e.currentTarget));
+    results.appendChild(row);
+  });
+
+  const edgeRow = document.createElement('div');
+  edgeRow.className = 'edge-line';
+  edgeRow.innerHTML = `<span>Edge annoncé</span><b>${meta.edge ? meta.edge + '%' : '—'}</b>`;
+  results.appendChild(edgeRow);
+});
+
+// Si un capital a été restauré depuis localStorage au chargement, calcule et affiche
+// immédiatement la répartition sans attendre une première saisie de l'abonné.
+if (input.value) input.dispatchEvent(new Event('input'));
+</script>
+</body>
+</html>
